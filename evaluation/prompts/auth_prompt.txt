@@ -1,0 +1,125 @@
+=== PERSONA ===
+You are a senior Java developer helping implement a feature
+for a production Spring Boot application. Write clean,
+secure, maintainable, production-quality code that follows
+Spring Boot best practices and OWASP security guidelines.
+
+=== CONTEXT ===
+Project: BingeBoxed — A streaming watchlist social application
+Architecture: Microservices-style Spring Boot monolith
+Stack: Spring Boot 3.2, Spring Security, JJWT 0.11.5,
+       Spring Data JPA, PostgreSQL, Thymeleaf
+Package base: com.bingeboxed
+Rules:
+  - No Lombok
+  - No additional Maven dependencies
+  - No cross-package imports between services
+
+=== EXISTING SHARED INTERFACE (DO NOT RECREATE) ===
+package com.bingeboxed.shared.security;
+public interface JwtService {
+    String generateToken(String email);
+    String extractEmail(String token);
+    boolean isTokenValid(String token);
+}
+
+=== DATABASE ===
+Use Spring Data JPA with @Entity classes.
+Spring will auto-create tables from entities.
+Use @GeneratedValue(strategy = GenerationType.IDENTITY)
+Do not create schema.sql
+
+Table specification:
+auth_users:
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY
+  email       VARCHAR(255) UNIQUE NOT NULL
+  password    VARCHAR(255) NOT NULL
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+=== FUNCTIONAL REQUIREMENTS ===
+FR-01: POST /api/auth/register
+  - Accepts { email, password }
+  - Validates email format
+  - Password minimum 8 characters
+  - Returns 201 on success
+  - Returns 400 on validation failure
+  - Returns 409 if email already exists
+
+FR-02: POST /api/auth/login
+  - Accepts { email, password }
+  - Returns 200 with { token } on success
+  - Returns 401 on invalid credentials
+
+FR-03: JWT tokens expire after 24 hours
+
+FR-04: All endpoints except /api/auth/** require
+       valid JWT in Authorization: Bearer header
+
+FR-05: Invalid or expired token returns 401
+
+FR-06: GET /login → renders templates/auth/login.html
+FR-07: GET /register → renders templates/auth/register.html
+
+=== NON-FUNCTIONAL REQUIREMENTS ===
+NFR-01: Passwords must be BCrypt hashed, never stored plain
+NFR-02: No Lombok
+NFR-03: No additional Maven dependencies
+NFR-04: Implement provided JwtService interface exactly
+NFR-05: JWT secret must come from application.properties
+        key: jwt.secret — do not hardcode it
+NFR-06: All errors return consistent JSON responses
+NFR-07: Fix circular dependency between JwtFilter and
+        SecurityConfig using @Lazy annotation
+
+=== SECURITY REQUIREMENTS ===
+SEC-01: No sensitive data in JWT payload beyond email
+SEC-02: No credentials or secrets hardcoded anywhere
+SEC-03: Passwords never logged or returned in responses
+SEC-04: SQL injection prevention via JPA parameterized queries
+SEC-05: XSS prevention via Thymeleaf auto-escaping
+SEC-06: CSRF disabled only for stateless REST endpoints
+SEC-07: Authentication errors must not reveal whether
+        email exists or password is wrong — always return
+        generic "Invalid credentials" message
+
+=== FRONTEND REQUIREMENTS ===
+templates/auth/login.html
+  - Clean presentable UI using Bootstrap 5 via CDN
+  - Form submits via JavaScript fetch() as JSON
+    to POST /api/auth/login
+  - Shows success or error message
+  - Link to register page
+
+templates/auth/register.html
+  - Clean presentable UI using Bootstrap 5 via CDN
+  - Form submits via JavaScript fetch() as JSON
+    to POST /api/auth/register
+  - Shows success or error message
+  - Link to login page
+
+=== FILES TO IMPLEMENT ===
+com.bingeboxed.auth.controller.AuthController
+com.bingeboxed.auth.controller.ViewAuthController
+com.bingeboxed.auth.service.AuthService (interface)
+com.bingeboxed.auth.service.AuthServiceImpl
+com.bingeboxed.auth.service.JwtServiceImpl (implements JwtService)
+com.bingeboxed.auth.repository.AuthUserRepository
+com.bingeboxed.auth.entity.AuthUser
+com.bingeboxed.auth.dto.RegisterRequest
+com.bingeboxed.auth.dto.LoginRequest
+com.bingeboxed.auth.dto.AuthResponse
+com.bingeboxed.shared.security.JwtFilter
+com.bingeboxed.shared.security.SecurityConfig
+src/main/resources/templates/auth/login.html
+src/main/resources/templates/auth/register.html
+
+=== EVALUATION ===
+Your implementation will be evaluated against acceptance
+tests derived from the functional requirements above.
+
+=== OUTPUT FORMAT ===
+Provide each file as a separate code block.
+Label every block with the full file path like:
+// src/main/java/com/bingeboxed/auth/controller/AuthController.java
+[code]
+Do not add explanations between files.
