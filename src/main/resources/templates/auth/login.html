@@ -1,0 +1,287 @@
+<!-- src/main/resources/templates/auth/login.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sign In — BingeBoxed</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+    <style>
+        :root {
+            --bg-deep:     #0a0c12;
+            --bg-card:     #11141e;
+            --bg-input:    #1a1f2e;
+            --amber:       #f5a623;
+            --amber-dim:   #c2831a;
+            --text-main:   #e8eaf0;
+            --text-muted:  #6b7280;
+            --border:      #252b3b;
+            --error:       #e05252;
+            --success:     #4ade80;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background-color: var(--bg-deep);
+            background-image:
+                    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(245,166,35,0.12) 0%, transparent 70%),
+                    radial-gradient(ellipse 40% 40% at 90% 90%, rgba(245,166,35,0.06) 0%, transparent 60%);
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .auth-wrap {
+            width: 100%;
+            max-width: 420px;
+            animation: fadeUp 0.5s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.8rem;
+            letter-spacing: 0.08em;
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        .brand-name span { color: var(--amber); }
+
+        .brand-tagline {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 0.4rem;
+        }
+
+        .card-auth {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+
+        .card-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.6rem;
+            letter-spacing: 0.06em;
+            color: var(--text-main);
+            margin-bottom: 1.75rem;
+        }
+
+        .form-label {
+            font-size: 0.78rem;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.45rem;
+            display: block;
+        }
+
+        .form-control {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            padding: 0.7rem 1rem;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--amber);
+            box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
+            background: var(--bg-input);
+            color: var(--text-main);
+        }
+
+        .form-control::placeholder { color: var(--text-muted); }
+
+        .mb-field { margin-bottom: 1.25rem; }
+
+        .btn-primary-auth {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--amber);
+            border: none;
+            border-radius: 8px;
+            color: #0a0c12;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-primary-auth:hover  { background: #ffb83d; }
+        .btn-primary-auth:active { transform: scale(0.98); }
+
+        .btn-primary-auth:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert-auth {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .alert-auth.error   { background: rgba(224,82,82,0.12); border: 1px solid rgba(224,82,82,0.3); color: var(--error); }
+        .alert-auth.success { background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.3); color: var(--success); }
+        .alert-auth.show    { display: block; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0 1.25rem;
+        }
+
+        .divider-line { flex: 1; height: 1px; background: var(--border); }
+        .divider-text { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+        .footer-link {
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .footer-link a {
+            color: var(--amber);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer-link a:hover { text-decoration: underline; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(10,12,18,0.3);
+            border-top-color: #0a0c12;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="auth-wrap">
+    <div class="brand">
+        <div class="brand-name">Binge<span>Boxed</span></div>
+        <div class="brand-tagline">Your streaming universe</div>
+    </div>
+
+    <div class="card-auth">
+        <div class="card-title">Welcome Back</div>
+
+        <div class="mb-field">
+            <label class="form-label" for="email">Email</label>
+            <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="email"/>
+        </div>
+
+        <div class="mb-field">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+
+        <button class="btn-primary-auth" id="loginBtn" onclick="handleLogin()">Sign In</button>
+
+        <div class="alert-auth" id="alertBox"></div>
+    </div>
+
+    <div class="divider">
+        <div class="divider-line"></div>
+        <div class="divider-text">New here?</div>
+        <div class="divider-line"></div>
+    </div>
+
+    <div class="footer-link">
+        Don't have an account? <a href="/register">Create one</a>
+    </div>
+</div>
+
+<script>
+    async function handleLogin() {
+        const btn     = document.getElementById('loginBtn');
+        const alert   = document.getElementById('alertBox');
+        const email   = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        alert.className = 'alert-auth';
+        alert.textContent = '';
+
+        if (!email || !password) {
+            showAlert('Please fill in all fields.', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Signing in…';
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showAlert('Signed in! Redirecting…', 'success');
+                localStorage.setItem('bb_token', data.token);
+                setTimeout(() => window.location.href = '/', 1200);
+            } else {
+                showAlert(data.message || 'Invalid credentials.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        } catch {
+            showAlert('Network error. Please try again.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Sign In';
+        }
+    }
+
+    function showAlert(msg, type) {
+        const el = document.getElementById('alertBox');
+        el.textContent = msg;
+        el.className = 'alert-auth ' + type + ' show';
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleLogin();
+    });
+</script>
+</body>
+</html>
