@@ -260,7 +260,7 @@
             if (res.ok) {
                 showAlert('Signed in! Redirecting…', 'success');
                 localStorage.setItem('bb_token', data.token);
-                setTimeout(() => window.location.href = '/', 1200);
+                setTimeout(() => window.location.href = '/profile', 1200);
             } else {
                 showAlert(data.message || 'Invalid credentials.', 'error');
                 btn.disabled = false;
