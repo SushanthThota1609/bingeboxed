@@ -1,4 +1,3 @@
-// src/main/java/com/bingeboxed/shared/security/SecurityConfig.java
 package com.bingeboxed.shared.security;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,7 +33,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/login", "/register").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/login", "/register", "/profile", "/profile/edit").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))

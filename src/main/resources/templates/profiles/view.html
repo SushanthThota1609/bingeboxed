@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - BingeBoxed</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .avatar-placeholder {
+            width: 120px;
+            height: 120px;
+            background-color: #e9ecef;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+        .avatar-img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <div id="avatarContainer"></div>
+                    <h2 id="displayName" class="card-title"></h2>
+                    <p id="email" class="text-muted"></p>
+                    <div id="bioContainer" class="mt-3"></div>
+                    <div class="mt-4">
+                        <a href="/profile/edit" class="btn btn-primary">Edit Profile</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Read token from the key used by the auth system (bb_token)
+    let token = localStorage.getItem('bb_token');
+    if (!token) token = sessionStorage.getItem('bb_token');
+
+    // Also check for other possible keys used by login page
+    if (!token) token = localStorage.getItem('token');
+    if (!token) token = sessionStorage.getItem('token');
+
+    console.log('Token found for view page:', token ? 'yes (length: ' + token.length + ')' : 'no');
+
+    if (!token) {
+        console.warn('No authentication token found, redirecting to login');
+        window.location.href = '/login';
+    }
+
+    fetch('/api/profiles/me', {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    })
+        .then(response => {
+            console.log('Profile API response status:', response.status);
+            if (response.status === 401) {
+                // Token invalid or expired
+                localStorage.removeItem('bb_token');
+                sessionStorage.removeItem('bb_token');
+                localStorage.removeItem('token');
+                sessionStorage.removeItem('token');
+                window.location.href = '/login';
+                return Promise.reject('Unauthorized');
+            }
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(profile => {
+            document.getElementById('displayName').textContent = profile.displayName || 'No display name set';
+            document.getElementById('email').textContent = profile.email;
+
+            const bioContainer = document.getElementById('bioContainer');
+            if (profile.bio) {
+                bioContainer.innerHTML = `<p class="card-text">${escapeHtml(profile.bio)}</p>`;
+            } else {
+                bioContainer.innerHTML = '<p class="text-muted">No bio added yet.</p>';
+            }
+
+            const avatarContainer = document.getElementById('avatarContainer');
+            if (profile.avatarUrl) {
+                avatarContainer.innerHTML = `<img src="${escapeHtml(profile.avatarUrl)}" alt="Avatar" class="avatar-img">`;
+            } else {
+                avatarContainer.innerHTML = '<div class="avatar-placeholder">👤</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading profile:', error);
+            const errorMsg = error.error || error.message || 'Failed to load profile.';
+            alert(errorMsg);
+        });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>
