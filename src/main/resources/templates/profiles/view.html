@@ -56,6 +56,7 @@
 
                 <div class="d-flex gap-2">
                     <a href="/profile/edit" class="btn btn-primary">Edit Profile</a>
+                    <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
                 </div>
 
             </div>
@@ -107,6 +108,17 @@
         .catch(() => {
             document.getElementById('displayName').textContent = 'Failed to load profile.';
         });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        }).finally(() => {
+            localStorage.removeItem('bb_token');
+            sessionStorage.removeItem('bb_token');
+            window.location.href = '/login';
+        });
+    });
 </script>
 </body>
 </html>

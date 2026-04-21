@@ -48,6 +48,11 @@ public class JwtServiceImpl implements JwtService {
         }
     }
 
+    @Override
+    public java.time.Instant extractExpiration(String token) {
+        return parseClaims(token).getExpiration().toInstant();
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(signingKey)

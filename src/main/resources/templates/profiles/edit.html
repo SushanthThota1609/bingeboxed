@@ -55,6 +55,7 @@
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary" id="saveBtn">Save Changes</button>
                     <a href="/profile" class="btn btn-outline-secondary">Cancel</a>
+                    <button class="btn btn-outline-danger" id="logoutBtn">Logout</button>
                 </div>
 
             </div>
@@ -118,6 +119,17 @@
                 statusMsg.textContent = 'Network error. Please try again.';
             })
             .finally(() => { saveBtn.disabled = false; });
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        }).finally(() => {
+            localStorage.removeItem('bb_token');
+            sessionStorage.removeItem('bb_token');
+            window.location.href = '/login';
+        });
     });
 </script>
 </body>
