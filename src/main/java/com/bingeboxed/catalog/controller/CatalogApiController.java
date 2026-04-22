@@ -160,7 +160,7 @@ public class CatalogApiController {
     }
 
     private void validateType(String type) {
-        if (type == null || (!type.equals("movie") && !type.equals("series"))) {
+        if (type == null || (!type.equalsIgnoreCase("movie") && !type.equalsIgnoreCase("series"))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "type must be 'movie' or 'series'");
         }

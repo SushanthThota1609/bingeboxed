@@ -1,301 +1,454 @@
+<!-- src/main/resources/templates/catalog/browse.html -->
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layout/base}">
-
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse — BingeBoxed</title>
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
           crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
-        .content-card { cursor: pointer; transition: transform .15s; }
-        .content-card:hover { transform: translateY(-4px); box-shadow: 0 6px 18px rgba(0,0,0,.2); }
-        .content-card img { height: 300px; object-fit: cover; }
+        :root {
+            --bg-deep:    #0a0c12;
+            --bg-card:    #11141e;
+            --bg-input:   #1a1f2e;
+            --amber:      #f5a623;
+            --text-main:  #e8eaf0;
+            --text-muted: #6b7280;
+            --border:     #252b3b;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .bb-nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .bb-brand {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.6rem;
+            letter-spacing: 0.06em;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+
+        .bb-brand span { color: var(--amber); }
+
+        .bb-nav-links { display: flex; gap: 1.5rem; align-items: center; }
+
+        .bb-nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.15s;
+        }
+
+        .bb-nav-links a.active, .bb-nav-links a:hover { color: var(--amber); }
+
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #e05252;
+            color: #e05252;
+            border-radius: 6px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .btn-logout:hover { background: #e05252; color: #fff; }
+
+        /* Search card */
+        .filter-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+
+        .form-control, .form-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border-color: var(--amber);
+            box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
+        }
+
+        .form-control::placeholder { color: var(--text-muted); }
+
+        .form-select option { background: var(--bg-input); }
+
+        .form-label { color: var(--text-muted); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+        /* Content cards */
+        .content-card {
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        .content-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--amber);
+            box-shadow: 0 6px 18px rgba(0,0,0,.4);
+        }
+
+        .content-card img {
+            height: 280px;
+            object-fit: cover;
+        }
+
+        .content-card .card-title { color: var(--text-main); font-size: 0.85rem; }
+        .content-card .card-body { background: var(--bg-card); }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--amber);
+            border-color: var(--amber);
+            color: #0a0c12;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover { background: #ffb83d; border-color: #ffb83d; color: #0a0c12; }
+
+        .btn-outline-secondary {
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline-secondary:hover {
+            background: var(--bg-input);
+            border-color: var(--text-muted);
+            color: var(--text-main);
+        }
+
+        /* Pagination */
+        .page-link {
+            background: var(--bg-card);
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        .page-item.active .page-link {
+            background: var(--amber);
+            border-color: var(--amber);
+            color: #0a0c12;
+        }
+
+        .page-link:hover { background: var(--bg-input); color: var(--text-main); }
+
+        /* Alert */
+        #alertBox { font-size: 0.875rem; }
+
         #loadingSpinner { display: none; }
     </style>
 </head>
-
 <body>
-<section layout:fragment="content">
 
-    <div class="container py-4">
-        <h1 class="mb-4">Browse Catalog</h1>
+<!-- Navbar -->
+<nav class="bb-nav">
+    <a href="/catalog" class="bb-brand">Binge<span>Boxed</span></a>
+    <div class="bb-nav-links">
+        <a href="/catalog" class="active">Browse</a>
+        <a href="/profile">Profile</a>
+        <button class="btn-logout" id="logoutBtn">Logout</button>
+    </div>
+</nav>
 
-        <!-- Search & Filter Bar -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="searchQuery" class="form-label fw-semibold">Search</label>
-                        <input type="text" id="searchQuery" class="form-control"
-                               placeholder="Title, keyword…"
-                               onkeydown="if(event.key==='Enter') handleSearch()">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="typeSelect" class="form-label fw-semibold">Type</label>
-                        <select id="typeSelect" class="form-select" onchange="loadGenres()">
-                            <option value="movie">Movies</option>
-                            <option value="series">Series</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="genreSelect" class="form-label fw-semibold">Genre</label>
-                        <select id="genreSelect" class="form-select">
-                            <option value="">All Genres</option>
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <label for="yearInput" class="form-label fw-semibold">Year</label>
-                        <input type="number" id="yearInput" class="form-control"
-                               placeholder="e.g. 2023" min="1888">
-                    </div>
-                    <div class="col-md-2 d-flex gap-2">
-                        <button class="btn btn-primary flex-fill" onclick="handleSearch()">Search</button>
-                        <button class="btn btn-outline-secondary flex-fill" onclick="handleBrowse()">Filter</button>
-                    </div>
-                </div>
+<div class="container py-4">
+
+    <!-- Search & Filter Bar -->
+    <div class="filter-card mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="searchQuery" class="form-label">Search</label>
+                <input type="text" id="searchQuery" class="form-control"
+                       placeholder="Title, keyword…"
+                       onkeydown="if(event.key==='Enter') handleSearch()">
+            </div>
+            <div class="col-md-2">
+                <label for="typeSelect" class="form-label">Type</label>
+                <select id="typeSelect" class="form-select" onchange="loadGenres()">
+                    <option value="movie">Movies</option>
+                    <option value="series">Series</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="genreSelect" class="form-label">Genre</label>
+                <select id="genreSelect" class="form-select">
+                    <option value="">All Genres</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label for="yearInput" class="form-label">Year</label>
+                <input type="number" id="yearInput" class="form-control"
+                       placeholder="2024" min="1888">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button class="btn btn-primary flex-fill" onclick="handleSearch()">Search</button>
+                <button class="btn btn-outline-secondary flex-fill" onclick="handleBrowse()">Filter</button>
             </div>
         </div>
-
-        <!-- Status / Error -->
-        <div id="alertBox" class="alert d-none" role="alert"></div>
-
-        <!-- Loading -->
-        <div id="loadingSpinner" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading…</span>
-            </div>
-        </div>
-
-        <!-- Results Grid -->
-        <div id="resultsGrid" class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3"></div>
-
-        <!-- Pagination -->
-        <nav id="paginationNav" class="mt-4 d-none" aria-label="Results pagination">
-            <ul class="pagination justify-content-center" id="paginationList"></ul>
-        </nav>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmqvfGMM/Sq7wjPT5f71hx5j6lX"
-            crossorigin="anonymous"></script>
+    <div id="alertBox" class="alert d-none" role="alert"></div>
 
-    <script>
-        let currentPage = 1;
-        let currentMode = 'trending'; // 'trending' | 'search' | 'browse'
-        let lastQuery = '';
-        let lastGenre = '';
-        let lastYear = '';
+    <div id="loadingSpinner" class="text-center py-5">
+        <div class="spinner-border" style="color:var(--amber)" role="status">
+            <span class="visually-hidden">Loading…</span>
+        </div>
+    </div>
 
-        // -----------------------------------------------------------------------
-        // Auth helper — reads JWT stored by the auth flow
-        // -----------------------------------------------------------------------
-        function authHeaders() {
-            const token = localStorage.getItem('authToken');
-            return token ? { 'Authorization': 'Bearer ' + token } : {};
+    <div id="resultsGrid" class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3"></div>
+
+    <nav id="paginationNav" class="mt-4 d-none" aria-label="Results pagination">
+        <ul class="pagination justify-content-center" id="paginationList"></ul>
+    </nav>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmqvfGMM/Sq7wjPT5f71hx5j6lX"
+        crossorigin="anonymous"></script>
+
+<script>
+    const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+    if (!token) { window.location.href = '/login'; }
+
+    let currentPage = 1;
+    let currentMode = 'trending';
+    let lastQuery = '';
+    let lastGenre = '';
+    let lastYear  = '';
+
+    function authHeaders() {
+        return { 'Authorization': 'Bearer ' + token };
+    }
+
+    async function apiGet(url) {
+        const res = await fetch(url, { headers: authHeaders() });
+        if (res.status === 401) { window.location.href = '/login'; return null; }
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.message || ('HTTP ' + res.status));
         }
+        return res.json();
+    }
 
-        // -----------------------------------------------------------------------
-        // API calls
-        // -----------------------------------------------------------------------
-        async function apiGet(url) {
-            const res = await fetch(url, { headers: authHeaders() });
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body.message || ('HTTP ' + res.status));
-            }
-            return res.json();
-        }
-
-        async function loadGenres() {
-            const type = document.getElementById('typeSelect').value;
-            const sel = document.getElementById('genreSelect');
-            sel.innerHTML = '<option value="">All Genres</option>';
-            try {
-                const genres = await apiGet('/api/catalog/genres?type=' + type);
-                genres.forEach(g => {
-                    const opt = document.createElement('option');
-                    opt.value = g.id;
-                    opt.textContent = g.name;
-                    sel.appendChild(opt);
-                });
-            } catch (e) {
-                console.warn('Could not load genres:', e.message);
-            }
-        }
-
-        async function loadTrending() {
-            const type = document.getElementById('typeSelect').value;
-            currentMode = 'trending';
-            showSpinner(true);
-            clearAlert();
-            try {
-                const items = await apiGet('/api/catalog/trending?type=' + type + '&window=week');
-                renderCards(items);
-                hidePagination();
-            } catch (e) {
-                showAlert('Could not load trending content: ' + e.message, 'danger');
-                clearGrid();
-            } finally {
-                showSpinner(false);
-            }
-        }
-
-        async function handleSearch() {
-            const q = document.getElementById('searchQuery').value.trim();
-            if (!q) { showAlert('Please enter a search term.', 'warning'); return; }
-            lastQuery = q;
-            currentMode = 'search';
-            currentPage = 1;
-            await doSearch();
-        }
-
-        async function doSearch() {
-            const type = document.getElementById('typeSelect').value;
-            showSpinner(true);
-            clearAlert();
-            try {
-                const data = await apiGet(
-                    `/api/catalog/search?q=${encodeURIComponent(lastQuery)}&type=${type}&page=${currentPage}`
-                );
-                renderCards(data.content || []);
-                renderPagination(data.page, data.totalPages, doSearch);
-            } catch (e) {
-                showAlert('Search failed: ' + e.message, 'danger');
-                clearGrid();
-            } finally {
-                showSpinner(false);
-            }
-        }
-
-        async function handleBrowse() {
-            lastGenre = document.getElementById('genreSelect').value;
-            lastYear  = document.getElementById('yearInput').value.trim();
-            currentMode = 'browse';
-            currentPage = 1;
-            await doBrowse();
-        }
-
-        async function doBrowse() {
-            const type = document.getElementById('typeSelect').value;
-            let url = `/api/catalog/browse?type=${type}&page=${currentPage}`;
-            if (lastGenre) url += '&genre=' + encodeURIComponent(lastGenre);
-            if (lastYear)  url += '&year='  + encodeURIComponent(lastYear);
-            showSpinner(true);
-            clearAlert();
-            try {
-                const data = await apiGet(url);
-                renderCards(data.content || []);
-                renderPagination(data.page, data.totalPages, doBrowse);
-            } catch (e) {
-                showAlert('Browse failed: ' + e.message, 'danger');
-                clearGrid();
-            } finally {
-                showSpinner(false);
-            }
-        }
-
-        // -----------------------------------------------------------------------
-        // Rendering helpers
-        // -----------------------------------------------------------------------
-        function renderCards(items) {
-            const grid = document.getElementById('resultsGrid');
-            grid.innerHTML = '';
-            if (!items.length) {
-                grid.innerHTML = '<p class="text-muted">No results found.</p>';
-                return;
-            }
-            const type = document.getElementById('typeSelect').value;
-            items.forEach(item => {
-                const poster = item.posterUrl
-                    ? item.posterUrl
-                    : 'https://via.placeholder.com/200x300?text=No+Image';
-                const year  = item.releaseYear || '';
-                const genre = item.genre || '';
-                const col   = document.createElement('div');
-                col.className = 'col';
-                col.innerHTML = `
-                    <div class="card content-card h-100"
-                         onclick="window.location='/catalog/${item.tmdbId}?type=${type}'">
-                        <img src="${escHtml(poster)}" class="card-img-top" alt="${escHtml(item.title)}">
-                        <div class="card-body p-2">
-                            <h6 class="card-title mb-1 text-truncate" title="${escHtml(item.title)}">${escHtml(item.title)}</h6>
-                            <small class="text-muted">${escHtml(String(year))}${genre ? ' · ' + escHtml(genre.split(',')[0]) : ''}</small>
-                        </div>
-                    </div>`;
-                grid.appendChild(col);
+    async function loadGenres() {
+        const type = document.getElementById('typeSelect').value;
+        const sel  = document.getElementById('genreSelect');
+        sel.innerHTML = '<option value="">All Genres</option>';
+        try {
+            const genres = await apiGet('/api/catalog/genres?type=' + type);
+            if (!genres) return;
+            genres.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.id;
+                opt.textContent = g.name;
+                sel.appendChild(opt);
             });
+        } catch (e) {
+            console.warn('Could not load genres:', e.message);
         }
+    }
 
-        function renderPagination(page, totalPages, loadFn) {
-            const nav  = document.getElementById('paginationNav');
-            const list = document.getElementById('paginationList');
-            if (totalPages <= 1) { nav.classList.add('d-none'); return; }
-            nav.classList.remove('d-none');
-            list.innerHTML = '';
-
-            const addItem = (label, targetPage, disabled, active) => {
-                const li = document.createElement('li');
-                li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
-                li.innerHTML = `<button class="page-link">${label}</button>`;
-                if (!disabled && !active) {
-                    li.querySelector('button').addEventListener('click', () => {
-                        currentPage = targetPage;
-                        loadFn();
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    });
-                }
-                list.appendChild(li);
-            };
-
-            addItem('«', page - 1, page === 1);
-            const start = Math.max(1, page - 2);
-            const end   = Math.min(totalPages, page + 2);
-            for (let p = start; p <= end; p++) addItem(p, p, false, p === page);
-            addItem('»', page + 1, page === totalPages);
+    async function loadTrending() {
+        const type = document.getElementById('typeSelect').value;
+        currentMode = 'trending';
+        showSpinner(true);
+        clearAlert();
+        try {
+            const items = await apiGet('/api/catalog/trending?type=' + type + '&window=week');
+            if (!items) return;
+            renderCards(items, type);
+            hidePagination();
+        } catch (e) {
+            showAlert('Could not load trending content: ' + e.message, 'danger');
+            clearGrid();
+        } finally {
+            showSpinner(false);
         }
+    }
 
-        function hidePagination() {
-            document.getElementById('paginationNav').classList.add('d-none');
+    async function handleSearch() {
+        const q = document.getElementById('searchQuery').value.trim();
+        if (!q) { loadTrending(); return; }
+        lastQuery = q;
+        currentMode = 'search';
+        currentPage = 1;
+        await doSearch();
+    }
+
+    async function doSearch() {
+        const type = document.getElementById('typeSelect').value;
+        showSpinner(true);
+        clearAlert();
+        try {
+            const data = await apiGet(
+                `/api/catalog/search?q=${encodeURIComponent(lastQuery)}&type=${type}&page=${currentPage}`
+            );
+            if (!data) return;
+            renderCards(data.content || [], type);
+            renderPagination(data.page, data.totalPages, doSearch);
+        } catch (e) {
+            showAlert('Search failed: ' + e.message, 'danger');
+            clearGrid();
+        } finally {
+            showSpinner(false);
         }
+    }
 
-        function clearGrid() {
-            document.getElementById('resultsGrid').innerHTML = '';
+    async function handleBrowse() {
+        lastGenre = document.getElementById('genreSelect').value;
+        lastYear  = document.getElementById('yearInput').value.trim();
+        currentMode = 'browse';
+        currentPage = 1;
+        await doBrowse();
+    }
+
+    async function doBrowse() {
+        const type = document.getElementById('typeSelect').value;
+        let url = `/api/catalog/browse?type=${type}&page=${currentPage}`;
+        if (lastGenre) url += '&genre=' + encodeURIComponent(lastGenre);
+        if (lastYear)  url += '&year='  + encodeURIComponent(lastYear);
+        showSpinner(true);
+        clearAlert();
+        try {
+            const data = await apiGet(url);
+            if (!data) return;
+            renderCards(data.content || [], type);
+            renderPagination(data.page, data.totalPages, doBrowse);
+        } catch (e) {
+            showAlert('Browse failed: ' + e.message, 'danger');
+            clearGrid();
+        } finally {
+            showSpinner(false);
         }
+    }
 
-        function showSpinner(on) {
-            document.getElementById('loadingSpinner').style.display = on ? 'block' : 'none';
-            if (on) clearGrid();
+    function renderCards(items, type) {
+        const grid = document.getElementById('resultsGrid');
+        grid.innerHTML = '';
+        if (!items.length) {
+            grid.innerHTML = '<p style="color:var(--text-muted)">No results found.</p>';
+            return;
         }
-
-        function showAlert(msg, type) {
-            const box = document.getElementById('alertBox');
-            box.textContent = msg;
-            box.className = `alert alert-${type}`;
-        }
-
-        function clearAlert() {
-            const box = document.getElementById('alertBox');
-            box.className = 'alert d-none';
-        }
-
-        function escHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        // -----------------------------------------------------------------------
-        // Init
-        // -----------------------------------------------------------------------
-        document.addEventListener('DOMContentLoaded', () => {
-            loadGenres();
-            loadTrending();
+        items.forEach(item => {
+            const itemType = (item.contentType || type).toLowerCase();
+            const poster   = item.posterUrl || '';
+            const year     = item.releaseYear || '';
+            const genre    = item.genre ? item.genre.split(',')[0] : '';
+            const col      = document.createElement('div');
+            col.className  = 'col';
+            col.innerHTML  = `
+                <div class="card content-card h-100"
+                     onclick="window.location='/catalog/${item.tmdbId}?type=${itemType}'">
+                    ${poster
+                        ? `<img src="${escHtml(poster)}" class="card-img-top" alt="${escHtml(item.title)}">`
+                        : `<div class="card-img-top d-flex align-items-center justify-content-center"
+                                style="height:280px;background:#1a1f2e;font-size:2.5rem;">🎬</div>`}
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 text-truncate" title="${escHtml(item.title)}">${escHtml(item.title)}</h6>
+                        <small style="color:var(--text-muted)">${escHtml(String(year))}${genre ? ' · ' + escHtml(genre) : ''}</small>
+                    </div>
+                </div>`;
+            grid.appendChild(col);
         });
-    </script>
+    }
 
-</section>
+    function renderPagination(page, totalPages, loadFn) {
+        const nav  = document.getElementById('paginationNav');
+        const list = document.getElementById('paginationList');
+        if (totalPages <= 1) { nav.classList.add('d-none'); return; }
+        nav.classList.remove('d-none');
+        list.innerHTML = '';
+
+        const addItem = (label, targetPage, disabled, active) => {
+            const li = document.createElement('li');
+            li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
+            li.innerHTML = `<button class="page-link">${label}</button>`;
+            if (!disabled && !active) {
+                li.querySelector('button').addEventListener('click', () => {
+                    currentPage = targetPage;
+                    loadFn();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+            list.appendChild(li);
+        };
+
+        addItem('«', page - 1, page === 1, false);
+        const start = Math.max(1, page - 2);
+        const end   = Math.min(totalPages, page + 2);
+        for (let p = start; p <= end; p++) addItem(p, p, false, p === page);
+        addItem('»', page + 1, page === totalPages, false);
+    }
+
+    function hidePagination() { document.getElementById('paginationNav').classList.add('d-none'); }
+    function clearGrid()      { document.getElementById('resultsGrid').innerHTML = ''; }
+
+    function showSpinner(on) {
+        document.getElementById('loadingSpinner').style.display = on ? 'block' : 'none';
+        if (on) clearGrid();
+    }
+
+    function showAlert(msg, type) {
+        const box = document.getElementById('alertBox');
+        box.textContent = msg;
+        box.className = `alert alert-${type}`;
+    }
+
+    function clearAlert() {
+        document.getElementById('alertBox').className = 'alert d-none';
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: authHeaders()
+        }).finally(() => {
+            localStorage.removeItem('bb_token');
+            sessionStorage.removeItem('bb_token');
+            window.location.href = '/login';
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadGenres();
+        loadTrending();
+    });
+</script>
 </body>
 </html>

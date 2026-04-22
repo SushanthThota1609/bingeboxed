@@ -218,7 +218,7 @@ public class CatalogServiceImpl implements CatalogService {
     // -------------------------------------------------------------------------
 
     private String toTmdbType(String type) {
-        return "series".equals(type) ? "tv" : "movie";
+        return "series".equalsIgnoreCase(type) ? "tv" : "movie";
     }
 
     private boolean isCacheValid(CatalogContent content) {

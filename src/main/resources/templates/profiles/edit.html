@@ -9,28 +9,127 @@
           rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
           crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #0f0f1a; color: #e0e0e0; }
-        .card { background-color: #1a1a2e; border: 1px solid #2a2a4a; }
-        .form-control, .form-control:focus {
-            background-color: #12122a;
-            color: #e0e0e0;
-            border-color: #2a2a4a;
+        :root {
+            --bg-deep:    #0a0c12;
+            --bg-card:    #11141e;
+            --bg-input:   #12122a;
+            --amber:      #f5a623;
+            --text-main:  #e8eaf0;
+            --text-muted: #6b7280;
+            --border:     #252b3b;
+            --purple:     #6c63ff;
         }
-        .form-control:focus { border-color: #6c63ff; box-shadow: 0 0 0 0.2rem rgba(108,99,255,.25); }
-        .btn-primary { background-color: #6c63ff; border-color: #6c63ff; }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        .bb-nav {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .bb-brand {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.6rem;
+            letter-spacing: 0.06em;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+
+        .bb-brand span { color: var(--amber); }
+
+        .bb-nav-links { display: flex; gap: 1.5rem; align-items: center; }
+
+        .bb-nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.15s;
+        }
+
+        .bb-nav-links a:hover { color: var(--amber); }
+        .bb-nav-links a.active { color: var(--amber); }
+
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #e05252;
+            color: #e05252;
+            border-radius: 6px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .btn-logout:hover { background: #e05252; color: #fff; }
+
+        .card { background-color: var(--bg-card); border: 1px solid var(--border); }
+
+        .form-control, .form-control:focus {
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            border-color: var(--border);
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .form-control:focus {
+            border-color: var(--purple);
+            box-shadow: 0 0 0 0.2rem rgba(108,99,255,.25);
+        }
+
+        .btn-primary { background-color: var(--purple); border-color: var(--purple); }
         .btn-primary:hover { background-color: #574fd6; border-color: #574fd6; }
-        label { color: #aaa; }
+
+        .btn-outline-secondary {
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline-secondary:hover {
+            background: var(--bg-input);
+            border-color: var(--text-muted);
+            color: var(--text-main);
+        }
+
+        label { color: var(--text-muted); }
+
         #statusMsg { display: none; }
     </style>
 </head>
 <body>
+
+<!-- Navbar -->
+<nav class="bb-nav">
+    <a href="/catalog" class="bb-brand">Binge<span>Boxed</span></a>
+    <div class="bb-nav-links">
+        <a href="/catalog">Browse</a>
+        <a href="/profile" class="active">Profile</a>
+        <button class="btn-logout" id="logoutBtn">Logout</button>
+    </div>
+</nav>
+
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-7 col-lg-6">
             <div class="card shadow-lg rounded-4 p-4">
 
-                <h2 class="mb-4" style="color: #6c63ff;">Edit Profile</h2>
+                <h2 class="mb-4" style="color: var(--purple);">Edit Profile</h2>
 
                 <div id="statusMsg" class="alert" role="alert"></div>
 
@@ -43,7 +142,7 @@
                 <div class="mb-3">
                     <label for="bio" class="form-label">Bio</label>
                     <textarea class="form-control" id="bio" rows="4"
-                              placeholder="Tell the world about your taste in shows..."></textarea>
+                              placeholder="Tell the world about your taste in shows…"></textarea>
                 </div>
 
                 <div class="mb-4">
@@ -55,7 +154,6 @@
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary" id="saveBtn">Save Changes</button>
                     <a href="/profile" class="btn btn-outline-secondary">Cancel</a>
-                    <button class="btn btn-outline-danger" id="logoutBtn">Logout</button>
                 </div>
 
             </div>
@@ -67,7 +165,6 @@
     const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
     if (!token) { window.location.href = '/login'; }
 
-    // Pre-fill form
     fetch('/api/profiles/me', {
         headers: { 'Authorization': 'Bearer ' + token }
     })
@@ -82,7 +179,6 @@
             if (data.avatarUrl)   document.getElementById('avatarUrl').value = data.avatarUrl;
         });
 
-    // Save handler
     document.getElementById('saveBtn').addEventListener('click', () => {
         const payload = {
             displayName: document.getElementById('displayName').value.trim() || null,

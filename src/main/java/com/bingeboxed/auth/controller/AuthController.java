@@ -25,6 +25,7 @@ public class AuthController {
     public AuthController(AuthService authService, JwtService jwtService, TokenBlacklistService tokenBlacklistService) {
         this.authService = authService;
         this.jwtService = jwtService;
+
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
