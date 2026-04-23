@@ -17,6 +17,20 @@
     </style>
 </head>
 <body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/catalog">BingeBoxed</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" href="/catalog">Browse</a></li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" id="navLogoutBtn">Logout</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -183,15 +197,20 @@
         sessionStorage.removeItem('token');
     }
 
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    function doLogout() {
         fetch('/api/auth/logout', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token }
-        })
-        .finally(function() {
+        }).finally(function() {
             clearTokens();
             window.location.href = '/login';
         });
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', doLogout);
+    document.getElementById('navLogoutBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        doLogout();
     });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

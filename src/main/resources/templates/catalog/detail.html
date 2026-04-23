@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>Content Details | BingeBoxed</title>
+</head>
+<body>
+<section>
+    <div class="container mt-4" id="detailContainer">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const tmdbId = pathParts[pathParts.length - 1];
+        const urlParams = new URLSearchParams(window.location.search);
+        const type = urlParams.get('type');
+
+        async function loadDetail() {
+            const response = await fetch(`/api/catalog/${tmdbId}/detail?type=${type}`, {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('bb_token') }
+            });
+            if (!response.ok) {
+                document.getElementById('detailContainer').innerHTML = '<div class="alert alert-danger">Content not found</div>';
+                return;
+            }
+            const item = await response.json();
+            document.getElementById('detailContainer').innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <img src="${item.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'}" class="img-fluid rounded" alt="${item.title}">
+                    </div>
+                    <div class="col-md-8">
+                        <h2>${escapeHtml(item.title)}</h2>
+                        <p><strong>Year:</strong> ${item.releaseYear || 'N/A'}</p>
+                        <p><strong>Genre:</strong> ${item.genre || 'Unknown'}</p>
+                        <p><strong>Overview:</strong> ${escapeHtml(item.overview) || 'No overview available'}</p>
+                        <button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('addToWatchlistBtn').addEventListener('click', () => {
+                alert('Watchlist functionality coming soon (stub)');
+                // TODO: POST to /api/watchlist
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        loadDetail();
+    </script>
+</section>
+</body>
+</html>

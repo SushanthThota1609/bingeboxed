@@ -14,11 +14,12 @@ echo ""
 case $SERVICE in
   auth)            TEST_CLASSES="AuthServiceTest,AuthControllerTest" ;;
   profiles)        TEST_CLASSES="ProfileServiceTest" ;;
-  catalog)         TEST_CLASSES="CatalogServiceTest" ;;
+  catalog)         TEST_CLASSES="CatalogServiceTest,CatalogFrontendTest,SecurityConfigTest" ;;
   watchlist)       TEST_CLASSES="WatchlistServiceTest" ;;
   reviews)         TEST_CLASSES="ReviewServiceTest" ;;
   social)          TEST_CLASSES="SocialGraphServiceTest" ;;
   recommendations) TEST_CLASSES="RecommendationServiceTest" ;;
+  security)        TEST_CLASSES="SecurityConfigTest" ;;
 esac
 
 # Run tests and capture output
