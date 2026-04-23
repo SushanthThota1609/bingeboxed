@@ -18,34 +18,99 @@
         const tmdbId = pathParts[pathParts.length - 1];
         const urlParams = new URLSearchParams(window.location.search);
         const type = urlParams.get('type');
+        const token = localStorage.getItem('token');
+
+        let currentStatus = null;
 
         async function loadDetail() {
             const response = await fetch(`/api/catalog/${tmdbId}/detail?type=${type}`, {
-                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('bb_token') }
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
             });
             if (!response.ok) {
                 document.getElementById('detailContainer').innerHTML = '<div class="alert alert-danger">Content not found</div>';
                 return;
             }
             const item = await response.json();
+
+            let watchlistButtonHtml = '';
+            if (token) {
+                // Check if already in watchlist
+                try {
+                    const checkResponse = await fetch(`/api/watchlist/contains/${tmdbId}`, {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (checkResponse.ok) {
+                        const check = await checkResponse.json();
+                        currentStatus = check.status;
+                        if (check.exists) {
+                            watchlistButtonHtml = `<button id="watchlistBtn" class="btn btn-secondary" disabled>Already in Watchlist</button>`;
+                        } else {
+                            watchlistButtonHtml = `<button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>`;
+                        }
+                    } else {
+                        watchlistButtonHtml = `<button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>`;
+                    }
+                } catch (err) {
+                    watchlistButtonHtml = `<button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>`;
+                }
+            } else {
+                watchlistButtonHtml = ''; // No token, hide button
+            }
+
             document.getElementById('detailContainer').innerHTML = `
                 <div class="row">
                     <div class="col-md-4">
-                        <img src="${item.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'}" class="img-fluid rounded" alt="${item.title}">
+                        <img src="${item.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'}" class="img-fluid rounded" alt="${escapeHtml(item.title)}">
                     </div>
                     <div class="col-md-8">
                         <h2>${escapeHtml(item.title)}</h2>
                         <p><strong>Year:</strong> ${item.releaseYear || 'N/A'}</p>
                         <p><strong>Genre:</strong> ${item.genre || 'Unknown'}</p>
                         <p><strong>Overview:</strong> ${escapeHtml(item.overview) || 'No overview available'}</p>
-                        <button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>
+                        ${watchlistButtonHtml}
                     </div>
                 </div>
             `;
-            document.getElementById('addToWatchlistBtn').addEventListener('click', () => {
-                alert('Watchlist functionality coming soon (stub)');
-                // TODO: POST to /api/watchlist
-            });
+
+            if (token && document.getElementById('addToWatchlistBtn')) {
+                document.getElementById('addToWatchlistBtn').addEventListener('click', async () => {
+                    const addBtn = document.getElementById('addToWatchlistBtn');
+                    addBtn.disabled = true;
+                    addBtn.textContent = 'Adding...';
+                    try {
+                        const addResponse = await fetch('/api/watchlist', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + token
+                            },
+                            body: JSON.stringify({ tmdbId: parseInt(tmdbId), contentType: type.toUpperCase() })
+                        });
+                        if (addResponse.ok) {
+                            alert('Added to watchlist!');
+                            addBtn.textContent = 'Already in Watchlist';
+                            addBtn.disabled = true;
+                            addBtn.classList.remove('btn-success');
+                            addBtn.classList.add('btn-secondary');
+                        } else if (addResponse.status === 409) {
+                            alert('This content is already in your watchlist.');
+                            addBtn.textContent = 'Already in Watchlist';
+                            addBtn.disabled = true;
+                            addBtn.classList.remove('btn-success');
+                            addBtn.classList.add('btn-secondary');
+                        } else {
+                            const errData = await addResponse.json();
+                            alert('Failed to add: ' + (errData.error || 'Unknown error'));
+                            addBtn.disabled = false;
+                            addBtn.textContent = 'Add to Watchlist';
+                        }
+                    } catch (err) {
+                        alert('Network error. Please try again.');
+                        addBtn.disabled = false;
+                        addBtn.textContent = 'Add to Watchlist';
+                    }
+                });
+            }
         }
 
         function escapeHtml(str) {

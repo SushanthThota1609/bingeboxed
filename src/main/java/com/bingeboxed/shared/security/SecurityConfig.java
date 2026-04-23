@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/api/catalog/**", "/login", "/register", "/profile", "/profile/edit", "/", "/catalog", "/catalog/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/api/catalog/**", "/api/watchlist/user/**", "/login", "/register", "/profile", "/profile/edit", "/", "/catalog", "/catalog/**", "/watchlist").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))

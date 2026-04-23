@@ -25,6 +25,14 @@
             object-fit: cover;
             margin-bottom: 1rem;
         }
+        .stats-card {
+            background-color: #f8f9fa;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -34,6 +42,8 @@
         <div class="collapse navbar-collapse">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item"><a class="nav-link" href="/catalog">Browse</a></li>
+                <li class="nav-item"><a class="nav-link" href="/watchlist">My Watchlist</a></li>
+                <li class="nav-item"><a class="nav-link" href="/social">Social</a></li>
             </ul>
             <ul class="navbar-nav">
                 <li class="nav-item"><a class="nav-link active" href="/profile">Profile</a></li>
@@ -45,7 +55,7 @@
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm mb-4">
                 <div class="card-body text-center">
                     <div id="avatarContainer"></div>
                     <h2 id="displayName" class="card-title"></h2>
@@ -53,7 +63,43 @@
                     <div id="bioContainer" class="mt-3"></div>
                     <div class="mt-4 d-flex justify-content-center gap-2">
                         <a href="/profile/edit" class="btn btn-primary">Edit Profile</a>
+                        <a href="/watchlist" class="btn btn-outline-success">My Watchlist</a>
                         <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Watchlist Summary Widget -->
+            <div class="card shadow-sm" id="watchlistStatsWidget" style="display: none;">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">📺 Watchlist Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center" id="statsContent">
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="stats-card card p-2">
+                                <h4 id="statTotal">0</h4>
+                                <small class="text-muted">Total items</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="stats-card card p-2">
+                                <h4 id="statWantToWatch">0</h4>
+                                <small class="text-muted">Want to watch</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="stats-card card p-2">
+                                <h4 id="statWatching">0</h4>
+                                <small class="text-muted">Watching</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6 mb-3">
+                            <div class="stats-card card p-2">
+                                <h4 id="statCompleted">0</h4>
+                                <small class="text-muted">Completed</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -62,13 +108,10 @@
 </div>
 
 <script>
-    // Read token from the key used by the auth system (bb_token)
-    let token = localStorage.getItem('bb_token');
-    if (!token) token = sessionStorage.getItem('bb_token');
-
-    // Also check for other possible keys used by login page
-    if (!token) token = localStorage.getItem('token');
+    let token = localStorage.getItem('token');
     if (!token) token = sessionStorage.getItem('token');
+    if (!token) token = localStorage.getItem('bb_token');
+    if (!token) token = sessionStorage.getItem('bb_token');
 
     console.log('Token found for view page:', token ? 'yes (length: ' + token.length + ')' : 'no');
 
@@ -77,6 +120,7 @@
         window.location.href = '/login';
     }
 
+    // Fetch profile data
     fetch('/api/profiles/me', {
         headers: {
             'Authorization': 'Bearer ' + token
@@ -85,11 +129,10 @@
         .then(response => {
             console.log('Profile API response status:', response.status);
             if (response.status === 401) {
-                // Token invalid or expired
-                localStorage.removeItem('bb_token');
-                sessionStorage.removeItem('bb_token');
                 localStorage.removeItem('token');
                 sessionStorage.removeItem('token');
+                localStorage.removeItem('bb_token');
+                sessionStorage.removeItem('bb_token');
                 window.location.href = '/login';
                 return Promise.reject('Unauthorized');
             }
@@ -122,6 +165,30 @@
             alert(errorMsg);
         });
 
+    // Fetch watchlist stats
+    function loadWatchlistStats() {
+        fetch('/api/watchlist/stats', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        })
+            .then(response => {
+                if (response.status === 401) return;
+                if (!response.ok) throw new Error('Stats fetch failed');
+                return response.json();
+            })
+            .then(stats => {
+                if (stats && typeof stats.total === 'number') {
+                    document.getElementById('statTotal').textContent = stats.total;
+                    document.getElementById('statWantToWatch').textContent = stats.wantToWatch;
+                    document.getElementById('statWatching').textContent = stats.watching;
+                    document.getElementById('statCompleted').textContent = stats.completed;
+                    document.getElementById('watchlistStatsWidget').style.display = 'block';
+                }
+            })
+            .catch(err => console.error('Could not load watchlist stats:', err));
+    }
+
+    loadWatchlistStats();
+
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -133,10 +200,10 @@
     }
 
     function clearTokens() {
-        localStorage.removeItem('bb_token');
-        sessionStorage.removeItem('bb_token');
         localStorage.removeItem('token');
         sessionStorage.removeItem('token');
+        localStorage.removeItem('bb_token');
+        sessionStorage.removeItem('bb_token');
     }
 
     function doLogout() {

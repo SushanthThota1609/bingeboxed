@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>My Watchlist | BingeBoxed</title>
+</head>
+<body>
+<section>
+    <div class="container py-4">
+        <h1 class="mb-4">My Watchlist</h1>
+
+        <!-- Stats bar -->
+        <div class="row mb-4" id="statsBar">
+            <div class="col-md-3 col-6">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" id="statTotal">0</h5>
+                        <p class="card-text">Total</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" id="statWantToWatch">0</h5>
+                        <p class="card-text">Want to Watch</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" id="statWatching">0</h5>
+                        <p class="card-text">Watching</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" id="statCompleted">0</h5>
+                        <p class="card-text">Completed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <select id="statusFilter" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="WANT_TO_WATCH">Want to Watch</option>
+                    <option value="WATCHING">Watching</option>
+                    <option value="COMPLETED">Completed</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select id="typeFilter" class="form-select">
+                    <option value="">All Types</option>
+                    <option value="MOVIE">Movies</option>
+                    <option value="SERIES">Series</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button id="clearFiltersBtn" class="btn btn-secondary">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Watchlist grid -->
+        <div id="watchlistGrid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <div class="col text-center py-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        let currentEntries = [];
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/watchlist/stats', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.status === 401) throw new Error('Unauthorized');
+                if (!response.ok) throw new Error('Stats fetch failed');
+                const stats = await response.json();
+                document.getElementById('statTotal').textContent = stats.total || 0;
+                document.getElementById('statWantToWatch').textContent = stats.wantToWatch || 0;
+                document.getElementById('statWatching').textContent = stats.watching || 0;
+                document.getElementById('statCompleted').textContent = stats.completed || 0;
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+                if (err.message === 'Unauthorized') window.location.href = '/login';
+            }
+        }
+
+        async function loadWatchlist() {
+            const status = document.getElementById('statusFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            let url = '/api/watchlist?';
+            if (status) url += `status=${status}&`;
+            if (type) url += `type=${type}&`;
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.status === 401) throw new Error('Unauthorized');
+                if (!response.ok) throw new Error('Failed to load watchlist');
+                const entries = await response.json();
+                currentEntries = entries;
+                renderWatchlist(entries);
+            } catch (err) {
+                console.error('Failed to load watchlist:', err);
+                if (err.message === 'Unauthorized') window.location.href = '/login';
+                else document.getElementById('watchlistGrid').innerHTML = '<div class="col-12 text-center text-danger">Failed to load watchlist. Please try again later.</div>';
+            }
+        }
+
+        function renderWatchlist(entries) {
+            const grid = document.getElementById('watchlistGrid');
+            if (!entries.length) {
+                grid.innerHTML = '<div class="col-12 text-center py-5"><h4>Your watchlist is empty</h4><p>Start adding movies and series from the <a href="/catalog">Browse</a> page.</p></div>';
+                return;
+            }
+            grid.innerHTML = entries.map(entry => `
+                <div class="col" data-tmdb-id="${entry.tmdbId}">
+                    <div class="card h-100">
+                        <img src="${entry.contentMetadata?.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'}" class="card-img-top" alt="${escapeHtml(entry.contentMetadata?.title || 'Unknown')}" style="height: 300px; object-fit: cover;">
+                        <div class="card-body">
+                            <h5 class="card-title">${escapeHtml(entry.contentMetadata?.title || 'Unknown Title')}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">${entry.contentMetadata?.releaseYear || 'N/A'} • ${entry.contentType}</small>
+                            </p>
+                            <span class="badge status-badge" data-status="${entry.status}" style="background-color: ${getStatusColor(entry.status)}">${formatStatus(entry.status)}</span>
+                        </div>
+                        <div class="card-footer bg-transparent d-flex justify-content-between">
+                            <select class="form-select form-select-sm status-select" style="width: auto;" data-tmdb-id="${entry.tmdbId}">
+                                <option value="WANT_TO_WATCH" ${entry.status === 'WANT_TO_WATCH' ? 'selected' : ''}>Want to Watch</option>
+                                <option value="WATCHING" ${entry.status === 'WATCHING' ? 'selected' : ''}>Watching</option>
+                                <option value="COMPLETED" ${entry.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+                            </select>
+                            <button class="btn btn-sm btn-danger remove-btn" data-tmdb-id="${entry.tmdbId}">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Attach event listeners
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.addEventListener('change', async (e) => {
+                    const tmdbId = select.dataset.tmdbId;
+                    const newStatus = select.value;
+                    try {
+                        const response = await fetch(`/api/watchlist/${tmdbId}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + token
+                            },
+                            body: JSON.stringify({ status: newStatus })
+                        });
+                        if (!response.ok) throw new Error('Update failed');
+                        const updated = await response.json();
+                        // Update badge
+                        const card = select.closest('.col');
+                        const badge = card.querySelector('.status-badge');
+                        badge.textContent = formatStatus(newStatus);
+                        badge.style.backgroundColor = getStatusColor(newStatus);
+                        badge.dataset.status = newStatus;
+                        // Reload stats
+                        loadStats();
+                    } catch (err) {
+                        alert('Failed to update status. Please try again.');
+                        select.value = entryStatusBefore; // need to preserve original, but we'll just reload
+                        loadWatchlist();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const tmdbId = btn.dataset.tmdbId;
+                    if (!confirm('Remove from watchlist?')) return;
+                    try {
+                        const response = await fetch(`/api/watchlist/${tmdbId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (!response.ok) throw new Error('Removal failed');
+                        // Remove card
+                        const card = btn.closest('.col');
+                        card.remove();
+                        // reload stats and maybe grid if empty
+                        loadStats();
+                        if (document.querySelectorAll('#watchlistGrid .col').length === 0) {
+                            renderWatchlist([]);
+                        }
+                    } catch (err) {
+                        alert('Failed to remove. Please try again.');
+                    }
+                });
+            });
+        }
+
+        function formatStatus(status) {
+            const map = {
+                'WANT_TO_WATCH': 'Want to Watch',
+                'WATCHING': 'Watching',
+                'COMPLETED': 'Completed'
+            };
+            return map[status] || status;
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'WANT_TO_WATCH': return '#0d6efd'; // blue
+                case 'WATCHING': return '#ffc107';      // yellow
+                case 'COMPLETED': return '#198754';     // green
+                default: return '#6c757d';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        document.getElementById('statusFilter').addEventListener('change', loadWatchlist);
+        document.getElementById('typeFilter').addEventListener('change', loadWatchlist);
+        document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('typeFilter').value = '';
+            loadWatchlist();
+        });
+
+        loadStats();
+        loadWatchlist();
+    </script>
+</section>
+</body>
+</html>

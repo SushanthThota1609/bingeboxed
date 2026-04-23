@@ -23,7 +23,10 @@
                     <a class="nav-link" href="/catalog">Browse</a>
                 </li>
                 <li class="nav-item d-none" id="watchlistNavItem">
-                    <a class="nav-link" href="/watchlist">Watchlist</a>
+                    <a class="nav-link" href="/watchlist">My Watchlist</a>
+                </li>
+                <li class="nav-item d-none" id="socialNavItem">
+                    <a class="nav-link" href="/social">Social</a>
                 </li>
             </ul>
             <ul class="navbar-nav" id="authNav">
@@ -51,20 +54,23 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     (function () {
-        const token = localStorage.getItem('bb_token');
+        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
         if (token) {
             document.getElementById('loginNavItem').classList.add('d-none');
             document.getElementById('registerNavItem').classList.add('d-none');
             document.getElementById('profileNavItem').classList.remove('d-none');
             document.getElementById('logoutNavItem').classList.remove('d-none');
             document.getElementById('watchlistNavItem').classList.remove('d-none');
+            document.getElementById('socialNavItem').classList.remove('d-none');
         }
         document.getElementById('navLogoutBtn').addEventListener('click', function (e) {
             e.preventDefault();
+            const t = localStorage.getItem('token') || localStorage.getItem('bb_token');
             fetch('/api/auth/logout', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('bb_token') }
+                headers: { 'Authorization': 'Bearer ' + t }
             }).finally(function () {
+                localStorage.removeItem('token');
                 localStorage.removeItem('bb_token');
                 window.location.href = '/login';
             });

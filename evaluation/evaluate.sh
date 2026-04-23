@@ -15,7 +15,7 @@ case $SERVICE in
   auth)            TEST_CLASSES="AuthServiceTest,AuthControllerTest" ;;
   profiles)        TEST_CLASSES="ProfileServiceTest" ;;
   catalog)         TEST_CLASSES="CatalogServiceTest,CatalogFrontendTest,SecurityConfigTest" ;;
-  watchlist)       TEST_CLASSES="WatchlistServiceTest" ;;
+  watchlist)       TEST_CLASSES="WatchlistServiceTest,WatchlistFrontendTest" ;;
   reviews)         TEST_CLASSES="ReviewServiceTest" ;;
   social)          TEST_CLASSES="SocialGraphServiceTest" ;;
   recommendations) TEST_CLASSES="RecommendationServiceTest" ;;
