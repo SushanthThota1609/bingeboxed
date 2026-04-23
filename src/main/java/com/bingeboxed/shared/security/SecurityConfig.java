@@ -1,4 +1,3 @@
-// src/main/java/com/bingeboxed/shared/security/SecurityConfig.java
 package com.bingeboxed.shared.security;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,13 +30,15 @@ public class SecurityConfig {
                 .logout(logout -> logout.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/catalog/**").permitAll()         // catalog read-only, needed for internal CatalogClient calls
+                        .requestMatchers("/api/catalog/**").permitAll()
                         .requestMatchers("/api/profiles/public/**").permitAll()
-                        .requestMatchers("/api/watchlist/user/**").permitAll()  // FR-06: public watchlist
+                        .requestMatchers("/api/watchlist/user/**").permitAll()
+                        .requestMatchers("/api/social/counts/**").permitAll()
                         .requestMatchers("/login", "/register").permitAll()
                         .requestMatchers("/profile", "/profile/edit").permitAll()
                         .requestMatchers("/catalog", "/catalog/**").permitAll()
-                        .requestMatchers("/watchlist").permitAll()              // auth enforced client-side
+                        .requestMatchers("/watchlist", "/watchlist/user/**").permitAll()
+                        .requestMatchers("/social", "/social/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated()
                 )

@@ -22,6 +22,8 @@
     .stat-card { background:#0f1118; border:1px solid var(--border); border-radius:10px; padding:0.75rem 1rem; text-align:center; }
     .stat-card .stat-value { font-size:1.5rem; font-weight:700; color:var(--amber); }
     .stat-card .stat-label { font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; }
+    .friend-count-badge { font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem; }
+    .friend-count-badge span { color:var(--amber); font-weight:600; }
 </style>
 
 <div class="container py-5">
@@ -34,6 +36,9 @@
                     <div>
                         <h2 id="displayName" class="mb-1 muted-text">No display name set</h2>
                         <small class="text-secondary" id="emailLabel"></small>
+                        <div class="friend-count-badge" id="friendCountBadge" style="display:none">
+                            <span id="friendsCount">0</span> friends
+                        </div>
                     </div>
                 </div>
 
@@ -44,10 +49,22 @@
                     <p id="bio" class="muted-text">No bio yet.</p>
                 </div>
 
-                <div class="d-flex gap-2 mb-4">
+                <!-- Self-profile actions -->
+                <div id="selfActions" class="d-flex gap-2 mb-4" style="display:none">
                     <a href="/profile/edit" class="btn btn-primary">Edit Profile</a>
                     <a href="/watchlist" class="btn btn-outline-secondary"
                        style="border-color:var(--border);color:var(--text-muted)">My Watchlist</a>
+                </div>
+
+                <!-- Social actions (other user's profile) -->
+                <div id="socialActions" class="d-flex gap-2 mb-4" style="display:none !important">
+                    <button id="btnAddFriend"      class="btn btn-primary"           style="display:none">Add Friend</button>
+                    <button id="btnRequestSent"    class="btn btn-secondary"         style="display:none" disabled>Request Sent</button>
+                    <button id="btnAccept"         class="btn btn-success"           style="display:none">Accept</button>
+                    <button id="btnDecline"        class="btn btn-outline-danger"    style="display:none">Decline</button>
+                    <button id="btnAlreadyFriends" class="btn btn-outline-secondary" style="display:none" disabled>Friends ✓</button>
+                    <a id="btnViewWatchlist" href="#" class="btn btn-outline-secondary"
+                       style="border-color:var(--border);color:var(--text-muted)">View Watchlist</a>
                 </div>
 
                 <hr>
@@ -74,13 +91,83 @@
 <div th:replace="~{layout/base :: scripts}"></div>
 
 <script>
-    (function () {
-        const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
-        if (!token) { window.location.href = '/login'; return; }
+(function () {
+    const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+    if (!token) { window.location.href = '/login'; return; }
 
-        function authHeaders() { return { 'Authorization': 'Bearer ' + token }; }
+    function authHeaders() { return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }; }
 
-        fetch('/api/profiles/me', { headers: authHeaders() })
+    const params = new URLSearchParams(window.location.search);
+    const viewingUserId = params.get('userId');
+
+    if (viewingUserId) {
+        document.getElementById('selfActions').style.display = 'none';
+        const socialActions = document.getElementById('socialActions');
+        socialActions.style.setProperty('display', 'flex', 'important');
+        document.getElementById('btnViewWatchlist').href = '/watchlist/user/' + viewingUserId;
+
+        fetch('/api/users/' + viewingUserId + '/profile', { headers: authHeaders() })
+            .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+            .then(data => {
+                if (!data) return;
+                const dn = document.getElementById('displayName');
+                if (data.displayName) { dn.textContent = data.displayName; dn.classList.remove('muted-text'); }
+                if (data.email) document.getElementById('emailLabel').textContent = data.email;
+                renderFriendshipStatus(data.friendshipStatus, viewingUserId);
+            })
+            .catch(() => {});
+
+        fetch('/api/social/counts/' + viewingUserId)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                document.getElementById('friendsCount').textContent = data.friendsCount ?? 0;
+                document.getElementById('friendCountBadge').style.display = '';
+            })
+            .catch(() => {});
+
+        function renderFriendshipStatus(status, uid) {
+            const btnAdd     = document.getElementById('btnAddFriend');
+            const btnSent    = document.getElementById('btnRequestSent');
+            const btnAccept  = document.getElementById('btnAccept');
+            const btnDecline = document.getElementById('btnDecline');
+            const btnFriends = document.getElementById('btnAlreadyFriends');
+
+            [btnAdd, btnSent, btnAccept, btnDecline, btnFriends].forEach(b => b.style.display = 'none');
+
+            if (status === 'NONE') {
+                btnAdd.style.display = '';
+                btnAdd.onclick = () => {
+                    fetch('/api/friends/requests', {
+                        method: 'POST', headers: authHeaders(),
+                        body: JSON.stringify({ receiverId: parseInt(uid) })
+                    }).then(r => { if (r.status === 401) { window.location.href = '/login'; return; } renderFriendshipStatus('PENDING_SENT', uid); }).catch(() => {});
+                };
+            } else if (status === 'PENDING_SENT') {
+                btnSent.style.display = '';
+            } else if (status === 'PENDING_RECEIVED') {
+                btnAccept.style.display = ''; btnDecline.style.display = '';
+                fetch('/api/friends/requests/incoming', { headers: authHeaders() })
+                    .then(r => r.ok ? r.json() : [])
+                    .then(requests => {
+                        const req = requests.find(r => String(r.senderId) === String(uid));
+                        if (!req) return;
+                        btnAccept.onclick = () => {
+                            fetch('/api/friends/requests/' + req.id + '/accept', { method: 'POST', headers: authHeaders() })
+                                .then(r => { if (r.ok) renderFriendshipStatus('FRIENDS', uid); }).catch(() => {});
+                        };
+                        btnDecline.onclick = () => {
+                            fetch('/api/friends/requests/' + req.id + '/decline', { method: 'POST', headers: authHeaders() })
+                                .then(r => { if (r.ok) renderFriendshipStatus('NONE', uid); }).catch(() => {});
+                        };
+                    }).catch(() => {});
+            } else if (status === 'FRIENDS') {
+                btnFriends.style.display = '';
+            }
+        }
+    } else {
+        document.getElementById('selfActions').style.display = 'flex';
+        fetch('/api/profiles/me', { headers: { 'Authorization': 'Bearer ' + token } })
             .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.json(); })
             .then(data => {
                 if (!data) return;
@@ -98,7 +185,7 @@
             })
             .catch(() => { document.getElementById('displayName').textContent = 'Failed to load profile.'; });
 
-        fetch('/api/watchlist/stats', { headers: authHeaders() })
+        fetch('/api/watchlist/stats', { headers: { 'Authorization': 'Bearer ' + token } })
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (!data) return;
@@ -111,7 +198,8 @@
                 document.getElementById('watchlistStats').style.display = '';
             })
             .catch(() => {});
-    })();
+    }
+})();
 </script>
 </body>
 </html>

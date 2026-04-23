@@ -1,0 +1,7 @@
+timestamp,model,service,prompt,passed,total,rate,
+2026-04-23 13:47,claude,social,2,BUILD_FAILURE,0,0,0,0,0%,[ERROR]  [ERROR] For more information about the errors and possible solutions; please read the following articles: [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+2026-04-23 13:50,claude,social,3,PARTIAL,24,5,0,19,79%,
+2026-04-23 13:51,claude,social,4,PARTIAL,24,5,0,19,79%,
+2026-04-23 14:06,claude,social,5,PARTIAL,24,4,0,20,83%,
+2026-04-23 14:09,claude,social,5,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-23 14:09,claude,social,6,PASS,24,0,0,24,100%,

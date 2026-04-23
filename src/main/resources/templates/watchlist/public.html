@@ -1,0 +1,162 @@
+<!-- src/main/resources/templates/watchlist/public.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('Watchlist – BingeBoxed')}"></head>
+<body>
+
+<div th:replace="~{layout/base :: nav('')}"></div>
+
+<style>
+    .section-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .entry-card {
+        background: #0f1118;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    .entry-title { font-weight: 500; color: var(--text-main); }
+    .entry-meta  { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .badge-status {
+        font-size: 0.75rem;
+        border-radius: 20px;
+        padding: 0.2rem 0.65rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .badge-WANT_TO_WATCH  { background: #1e3a5f; color: #60a5fa; }
+    .badge-WATCHING       { background: #3b2f0a; color: #fbbf24; }
+    .badge-COMPLETED      { background: #0f3a1f; color: #4ade80; }
+    .badge-DROPPED        { background: #3a0f0f; color: #f87171; }
+    .empty-state { color: var(--text-muted); font-style: italic; padding: 1rem 0; }
+    .spinner {
+        display: inline-block; width: 1.25rem; height: 1.25rem;
+        border: 2px solid var(--border); border-top-color: var(--purple);
+        border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .back-link { color: var(--text-muted); font-size: 0.85rem; text-decoration: none; }
+    .back-link:hover { color: var(--amber); }
+</style>
+
+<div class="container py-5">
+    <div class="mb-4">
+        <a href="javascript:history.back()" class="back-link">← Back</a>
+    </div>
+
+    <h1 id="pageTitle" style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em;margin-bottom:1.5rem">
+        Watchlist
+    </h1>
+
+    <div class="section-card">
+        <div id="filterBar" class="d-flex gap-2 mb-3 flex-wrap" style="display:none !important">
+            <button class="filter-btn active" data-status="">All</button>
+            <button class="filter-btn" data-status="WANT_TO_WATCH">Want to Watch</button>
+            <button class="filter-btn" data-status="WATCHING">Watching</button>
+            <button class="filter-btn" data-status="COMPLETED">Completed</button>
+            <button class="filter-btn" data-status="DROPPED">Dropped</button>
+        </div>
+        <div id="entriesList"><div class="spinner"></div></div>
+    </div>
+</div>
+
+<div th:replace="~{layout/base :: scripts}"></div>
+
+<script th:inline="javascript">
+(function () {
+    const userId = /*[[${userId}]]*/ null;
+    if (!userId) { window.location.href = '/social'; return; }
+
+    const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+
+    function escHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function statusLabel(s) {
+        const map = { WANT_TO_WATCH: 'Want to Watch', WATCHING: 'Watching', COMPLETED: 'Completed', DROPPED: 'Dropped' };
+        return map[s] || s || '';
+    }
+
+    function renderEntries(entries) {
+        const el = document.getElementById('entriesList');
+        if (!entries || entries.length === 0) {
+            el.innerHTML = '<div class="empty-state">No movies or shows in this watchlist yet.</div>';
+            return;
+        }
+        el.innerHTML = entries.map(e => {
+            const title = e.title || ('TMDB #' + e.tmdbId);
+            const type  = e.contentType ? e.contentType.toLowerCase() : '';
+            const rating = e.rating != null ? '⭐ ' + e.rating + '/10' : '';
+            return `<div class="entry-card">
+                <div>
+                    <div class="entry-title">${escHtml(title)}</div>
+                    <div class="entry-meta">${escHtml(type)}${rating ? ' · ' + escHtml(rating) : ''}</div>
+                </div>
+                <span class="badge-status badge-${escHtml(e.status)}">${escHtml(statusLabel(e.status))}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function loadWatchlist(status) {
+        const el = document.getElementById('entriesList');
+        el.innerHTML = '<div class="spinner"></div>';
+        let url = '/api/watchlist/user/' + userId;
+        if (status) url += '?status=' + encodeURIComponent(status);
+        fetch(url)
+            .then(r => {
+                if (r.status === 404) { el.innerHTML = '<div class="empty-state">User not found.</div>'; return null; }
+                return r.ok ? r.json() : null;
+            })
+            .then(data => { if (data !== null) renderEntries(data); })
+            .catch(() => { el.innerHTML = '<div class="empty-state">Failed to load watchlist.</div>'; });
+    }
+
+    // Load display name for page title
+    const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+    fetch('/api/users/' + userId + '/profile', { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (data && (data.displayName || data.email)) {
+                const name = data.displayName || data.email;
+                document.getElementById('pageTitle').textContent = name + "'s Watchlist";
+            }
+        })
+        .catch(() => {});
+
+    // Filter buttons
+    const filterBar = document.getElementById('filterBar');
+    filterBar.style.setProperty('display', 'flex', 'important');
+    filterBar.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadWatchlist(btn.dataset.status);
+        });
+    });
+
+    loadWatchlist('');
+})();
+</script>
+
+<style>
+    .filter-btn {
+        background: #1a1f2e; border: 1px solid var(--border); color: var(--text-muted);
+        border-radius: 20px; padding: 0.3rem 0.9rem; font-size: 0.8rem; cursor: pointer;
+        font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .filter-btn:hover  { border-color: var(--purple); color: var(--text-main); }
+    .filter-btn.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+</style>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!-- src/main/resources/templates/social/index.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('Social – BingeBoxed')}">
+</head>
+<body>
+
+<div th:replace="~{layout/base :: nav('social')}"></div>
+
+<style>
+    .section-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+    .user-card {
+        background: #0f1118;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    .user-info .name  { font-weight: 500; color: var(--text-main); }
+    .user-info .email { font-size: 0.8rem; color: var(--text-muted); }
+    .empty-state { color: var(--text-muted); font-style: italic; font-size: 0.9rem; padding: 0.5rem 0; }
+    .search-input {
+        background: #0f1118;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        width: 100%;
+    }
+    .search-input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 2px rgba(108,99,255,0.2); }
+    .search-input::placeholder { color: var(--text-muted); }
+    .btn-sm-purple { background: var(--purple); border: none; color: #fff; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; cursor: pointer; }
+    .btn-sm-purple:hover { background: #574fd6; }
+    .btn-sm-purple:disabled { background: #2a2d3a; color: var(--text-muted); cursor: not-allowed; }
+    .btn-sm-success { background: #16a34a; border: none; color: #fff; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; cursor: pointer; }
+    .btn-sm-success:hover { background: #15803d; }
+    .btn-sm-danger { background: transparent; border: 1px solid #e05252; color: #e05252; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; cursor: pointer; }
+    .btn-sm-danger:hover { background: #e05252; color: #fff; }
+    .btn-sm-muted { background: #1a1f2e; border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; text-decoration: none; display: inline-block; }
+    .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="container py-5">
+    <h1 style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em;margin-bottom:1.5rem">Social</h1>
+
+    <div class="section-card">
+        <div class="section-title">Find People</div>
+        <div class="d-flex gap-2">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search by name or email…">
+            <button id="searchBtn" class="btn-sm-purple" style="white-space:nowrap;padding:0.5rem 1rem">Search</button>
+        </div>
+        <div id="searchResults" style="margin-top:1rem"></div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">Incoming Requests</div>
+        <div id="incomingList"><div class="spinner"></div></div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">Friends</div>
+        <div id="friendsList"><div class="spinner"></div></div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">Sent Requests</div>
+        <div id="outgoingList"><div class="spinner"></div></div>
+    </div>
+</div>
+
+<div th:replace="~{layout/base :: scripts}"></div>
+
+<script>
+(function () {
+    const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+    if (!token) { window.location.href = '/login'; return; }
+
+    function authHeaders() { return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }; }
+    function handleUnauth(res) { if (res.status === 401) { window.location.href = '/login'; return true; } return false; }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function userCard(userId, name, email, actionsHtml) {
+        const displayName = name || email || 'Unknown User';
+        const sub = name && email ? email : '';
+        return `<div class="user-card" id="ucard-${userId}">
+            <div class="user-info">
+                <div class="name">${escHtml(displayName)}</div>
+                ${sub ? `<div class="email">${escHtml(sub)}</div>` : ''}
+            </div>
+            <div class="d-flex gap-2 align-items-center">${actionsHtml}</div>
+        </div>`;
+    }
+
+    function emptyState(msg) { return `<div class="empty-state">${msg}</div>`; }
+
+    // Search
+    const searchInput   = document.getElementById('searchInput');
+    const searchBtn     = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+
+    function doSearch() {
+        const q = searchInput.value.trim();
+        if (!q) { searchResults.innerHTML = emptyState('Enter a name or email to search.'); return; }
+        searchResults.innerHTML = '<div class="spinner" style="margin-top:0.5rem"></div>';
+        fetch('/api/users/search?query=' + encodeURIComponent(q), { headers: authHeaders() })
+            .then(r => { if (handleUnauth(r)) return null; return r.json(); })
+            .then(data => {
+                if (!data) return;
+                if (data.length === 0) { searchResults.innerHTML = emptyState('No users found.'); return; }
+                searchResults.innerHTML = data.map(u => {
+                    let btn = '';
+                    if      (u.friendshipStatus === 'FRIENDS')          btn = `<span class="btn-sm-muted">Friends ✓</span>`;
+                    else if (u.friendshipStatus === 'PENDING_SENT')     btn = `<span class="btn-sm-muted">Request Sent</span>`;
+                    else if (u.friendshipStatus === 'PENDING_RECEIVED') btn = `<span class="btn-sm-muted">Incoming Request</span>`;
+                    else btn = `<button class="btn-sm-purple add-friend-btn" data-uid="${u.userId}">Add Friend</button>`;
+                    const profileLink = `<a href="/profile?userId=${u.userId}" class="btn-sm-muted">View</a>`;
+                    return userCard(u.userId, u.displayName, u.email, btn + ' ' + profileLink);
+                }).join('');
+
+                document.querySelectorAll('.add-friend-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const uid = parseInt(btn.dataset.uid);
+                        btn.disabled = true; btn.textContent = '…';
+                        fetch('/api/friends/requests', {
+                            method: 'POST', headers: authHeaders(),
+                            body: JSON.stringify({ receiverId: uid })
+                        })
+                        .then(r => { if (handleUnauth(r)) return; btn.outerHTML = `<span class="btn-sm-muted">Request Sent</span>`; })
+                        .catch(() => { btn.disabled = false; btn.textContent = 'Add Friend'; });
+                    });
+                });
+            })
+            .catch(() => { searchResults.innerHTML = emptyState('Search failed. Please try again.'); });
+    }
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+    // Incoming requests
+    function loadIncoming() {
+        fetch('/api/friends/requests/incoming', { headers: authHeaders() })
+            .then(r => { if (handleUnauth(r)) return null; return r.json(); })
+            .then(data => {
+                const el = document.getElementById('incomingList');
+                if (!data || data.length === 0) { el.innerHTML = emptyState('No incoming requests.'); return; }
+                el.innerHTML = data.map(req => {
+                    const actions = `
+                        <button class="btn-sm-success accept-btn"  data-rid="${req.id}">Accept</button>
+                        <button class="btn-sm-danger  decline-btn" data-rid="${req.id}">Decline</button>`;
+                    return userCard(req.senderId, req.senderDisplayName, req.senderEmail, actions);
+                }).join('');
+
+                el.querySelectorAll('.accept-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        fetch('/api/friends/requests/' + btn.dataset.rid + '/accept', { method: 'POST', headers: authHeaders() })
+                            .then(r => { if (handleUnauth(r)) return; if (r.ok) { loadIncoming(); loadFriends(); } })
+                            .catch(() => {});
+                    });
+                });
+                el.querySelectorAll('.decline-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        fetch('/api/friends/requests/' + btn.dataset.rid + '/decline', { method: 'POST', headers: authHeaders() })
+                            .then(r => { if (handleUnauth(r)) return; if (r.ok) loadIncoming(); })
+                            .catch(() => {});
+                    });
+                });
+            })
+            .catch(() => { document.getElementById('incomingList').innerHTML = emptyState('Failed to load requests.'); });
+    }
+
+    // Friends list
+    function loadFriends() {
+        fetch('/api/friends', { headers: authHeaders() })
+            .then(r => { if (handleUnauth(r)) return null; return r.json(); })
+            .then(data => {
+                const el = document.getElementById('friendsList');
+                if (!data || data.length === 0) { el.innerHTML = emptyState('No friends yet. Search for people to connect with!'); return; }
+                el.innerHTML = data.map(f => {
+                    const actions = `
+                        <a href="/profile?userId=${f.userId}" class="btn-sm-muted">Profile</a>
+                        <a href="/watchlist/user/${f.userId}" class="btn-sm-muted">Watchlist</a>`;
+                    return userCard(f.userId, f.displayName, f.email, actions);
+                }).join('');
+            })
+            .catch(() => { document.getElementById('friendsList').innerHTML = emptyState('Failed to load friends.'); });
+    }
+
+    // Outgoing requests
+    function loadOutgoing() {
+        fetch('/api/friends/requests/outgoing', { headers: authHeaders() })
+            .then(r => { if (handleUnauth(r)) return null; return r.json(); })
+            .then(data => {
+                const el = document.getElementById('outgoingList');
+                if (!data || data.length === 0) { el.innerHTML = emptyState('No pending outgoing requests.'); return; }
+                el.innerHTML = data.map(req => userCard(req.receiverId, null, req.senderEmail || '', `<span class="btn-sm-muted">Pending</span>`)).join('');
+            })
+            .catch(() => { document.getElementById('outgoingList').innerHTML = emptyState('Failed to load sent requests.'); });
+    }
+
+    loadIncoming();
+    loadFriends();
+    loadOutgoing();
+})();
+</script>
+</body>
+</html>

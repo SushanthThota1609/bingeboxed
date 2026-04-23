@@ -1,0 +1,157 @@
+bingeboxed/
+├── .github/
+│   └── PULL_REQUEST_TEMPLATE.md
+├── .idea/                          (IntelliJ project files)
+├── docs/
+│   └── schema.sql
+├── evaluation/
+│   └── evaluate.sh
+├── sonarqube/
+│   └── sonar-project.properties
+├── src/
+│   ├── main/
+│   │   ├── java/com/bingeboxed/
+│   │   │   ├── BingeboxedApplication.java
+│   │   │   ├── auth/
+│   │   │   │   ├── controller/
+│   │   │   │   │   ├── AuthController.java
+│   │   │   │   │   └── AuthViewController.java
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── LoginRequest.java
+│   │   │   │   │   ├── LoginResponse.java
+│   │   │   │   │   └── RegisterRequest.java
+│   │   │   │   ├── entity/
+│   │   │   │   │   └── AuthUser.java
+│   │   │   │   ├── repository/
+│   │   │   │   │   └── AuthUserRepository.java
+│   │   │   │   └── service/
+│   │   │   │       └── AuthService.java
+│   │   │   ├── catalog/
+│   │   │   │   ├── client/
+│   │   │   │   │   ├── TmdbApiException.java
+│   │   │   │   │   ├── TmdbClient.java
+│   │   │   │   │   └── TmdbUnavailableException.java
+│   │   │   │   ├── controller/
+│   │   │   │   │   ├── CatalogApiController.java
+│   │   │   │   │   └── CatalogViewController.java
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── CatalogResult.java
+│   │   │   │   │   ├── ContentDto.java
+│   │   │   │   │   ├── GenreDto.java
+│   │   │   │   │   ├── PagedResponse.java
+│   │   │   │   │   └── PagedResponseDto.java
+│   │   │   │   ├── entity/
+│   │   │   │   │   └── CatalogContent.java
+│   │   │   │   ├── repository/
+│   │   │   │   │   └── CatalogContentRepository.java
+│   │   │   │   └── service/
+│   │   │   │       ├── CatalogService.java
+│   │   │   │       └── CatalogServiceImpl.java
+│   │   │   ├── profiles/
+│   │   │   │   ├── controller/
+│   │   │   │   │   ├── ProfileApiController.java
+│   │   │   │   │   └── ProfileViewController.java
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── ProfileResponse.java
+│   │   │   │   │   ├── PublicProfileResponse.java
+│   │   │   │   │   └── UpdateProfileRequest.java
+│   │   │   │   ├── entity/
+│   │   │   │   │   └── UserProfile.java
+│   │   │   │   ├── repository/
+│   │   │   │   │   └── UserProfileRepository.java
+│   │   │   │   └── service/
+│   │   │   │       ├── AuthUserLookupService.java
+│   │   │   │       └── ProfileService.java
+│   │   │   ├── shared/
+│   │   │   │   ├── client/
+│   │   │   │   │   ├── CatalogClient.java
+│   │   │   │   │   ├── CatalogClientException.java
+│   │   │   │   │   ├── CatalogContentDto.java
+│   │   │   │   │   ├── CatalogUnavailableException.java
+│   │   │   │   │   └── SocialGraphClient.java
+│   │   │   │   ├── exception/
+│   │   │   │   │   ├── GlobalExceptionHandler.java
+│   │   │   │   │   └── ResourceNotFoundException.java
+│   │   │   │   ├── security/
+│   │   │   │   │   ├── JwtAuthenticationFilter.java
+│   │   │   │   │   ├── JwtService.java
+│   │   │   │   │   ├── JwtServiceImpl.java
+│   │   │   │   │   ├── SecurityConfig.java
+│   │   │   │   │   └── TokenBlacklistService.java
+│   │   │   │   └── user/
+│   │   │   │       └── UserResolverService.java
+│   │   │   └── watchlist/
+│   │   │       ├── controller/
+│   │   │       │   ├── UserResolver.java
+│   │   │       │   ├── UserResolverImpl.java
+│   │   │       │   ├── WatchlistApiController.java
+│   │   │       │   └── WatchlistViewController.java
+│   │   │       ├── dto/
+│   │   │       │   ├── AddToWatchlistRequest.java
+│   │   │       │   ├── ContainsResponse.java
+│   │   │       │   ├── UpdateStatusRequest.java
+│   │   │       │   ├── WatchlistEntryResponse.java
+│   │   │       │   └── WatchlistStatsResponse.java
+│   │   │       ├── entity/
+│   │   │       │   └── WatchlistEntry.java
+│   │   │       ├── repository/
+│   │   │       │   ├── StatusCount.java
+│   │   │       │   └── WatchlistRepository.java
+│   │   │       └── service/
+│   │   │           ├── WatchlistService.java
+│   │   │           └── WatchlistServiceImpl.java
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       ├── application-dev.properties
+│   │       ├── application-test.properties
+│   │       ├── data.sql
+│   │       └── templates/
+│   │           ├── layout/
+│   │           │   └── base.html
+│   │           ├── auth/
+│   │           │   ├── login.html
+│   │           │   └── register.html
+│   │           ├── catalog/
+│   │           │   ├── browse.html
+│   │           │   ├── detail.html
+│   │           │   └── index.html
+│   │           ├── profiles/
+│   │           │   ├── edit.html
+│   │           │   └── view.html
+│   │           ├── recommendations/
+│   │           │   └── index.html
+│   │           ├── reviews/
+│   │           │   └── index.html
+│   │           ├── social/
+│   │           │   └── index.html
+│   │           └── watchlist/
+│   │               └── index.html
+│   └── test/
+│       ├── java/com/bingeboxed/
+│       │   ├── BingeboxedApplicationTests.java
+│       │   ├── auth/
+│       │   │   ├── AuthControllerTest.java
+│       │   │   └── AuthServiceTest.java
+│       │   ├── catalog/
+│       │   │   └── CatalogServiceTest.java
+│       │   ├── profiles/
+│       │   │   └── ProfileServiceTest.java
+│       │   ├── recommendations/
+│       │   │   └── RecommendationServiceTest.java
+│       │   ├── reviews/
+│       │   │   └── ReviewServiceTest.java
+│       │   ├── social/
+│       │   │   └── SocialGraphServiceTest.java
+│       │   └── watchlist/
+│       │       ├── WatchlistIntegrationTest.java
+│       │       ├── WatchlistServiceAdditionalTest.java
+│       │       └── WatchlistServiceTest.java
+│       └── resources/
+│           └── application-test.properties
+├── .gitattributes
+├── .gitignore
+├── mvnw
+├── mvnw.cmd
+├── pom.xml
+├── README.md
+└── setup.sh

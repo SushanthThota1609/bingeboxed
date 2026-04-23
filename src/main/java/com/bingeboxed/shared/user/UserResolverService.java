@@ -1,4 +1,3 @@
-// src/main/java/com/bingeboxed/shared/user/UserResolverService.java
 package com.bingeboxed.shared.user;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +18,12 @@ public class UserResolverService {
     public Optional<Long> resolveUserId(String email) {
         List<Long> ids = jdbcTemplate.queryForList(
                 "SELECT id FROM auth_users WHERE email = ?", Long.class, email);
+        return ids.isEmpty() ? Optional.empty() : Optional.of(ids.get(0));
+    }
+
+    public Optional<Long> resolveUserById(Long userId) {
+        List<Long> ids = jdbcTemplate.queryForList(
+                "SELECT id FROM auth_users WHERE id = ?", Long.class, userId);
         return ids.isEmpty() ? Optional.empty() : Optional.of(ids.get(0));
     }
 }
