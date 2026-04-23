@@ -38,6 +38,12 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(token));
     }
 
+    @PostMapping("/api/auth/logout")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> logout() {
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
     // View endpoints
     @GetMapping("/login")
     public String loginPage() {
