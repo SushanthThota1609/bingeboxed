@@ -1,0 +1,284 @@
+<!-- src/main/resources/templates/watchlist/index.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('My Watchlist – BingeBoxed')}">
+</head>
+<body>
+
+<div th:replace="~{layout/base :: nav('watchlist')}"></div>
+
+<style>
+    .wl-stat-bar {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.5rem;
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .wl-stat { text-align: center; }
+    .wl-stat .val { font-size: 1.4rem; font-weight: 700; color: var(--amber); display: block; }
+    .wl-stat .lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .wl-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; }
+    .wl-filters select {
+        background: var(--bg-card);
+        color: var(--text-main);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+    .wl-filters select:focus { outline: none; border-color: var(--purple); }
+    .wl-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: border-color 0.15s;
+    }
+    .wl-card:hover { border-color: var(--purple); }
+    .wl-card-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+    .wl-card-poster-placeholder {
+        width: 100%;
+        aspect-ratio: 2/3;
+        background: #1a1f2e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+    }
+    .wl-card-body { padding: 0.85rem; display: flex; flex-direction: column; flex: 1; }
+    .wl-card-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wl-card-meta { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+    .badge-status {
+        display: inline-block;
+        border-radius: 5px;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.6rem;
+    }
+    .badge-WANT_TO_WATCH { background: rgba(59,130,246,0.2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.35); }
+    .badge-WATCHING      { background: rgba(234,179,8,0.2);  color: #eab308; border: 1px solid rgba(234,179,8,0.35); }
+    .badge-COMPLETED     { background: rgba(34,197,94,0.2);  color: #22c55e; border: 1px solid rgba(34,197,94,0.35); }
+    .wl-status-select {
+        background: #0f1118;
+        color: var(--text-main);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+        font-family: 'DM Sans', sans-serif;
+        width: 100%;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+    }
+    .btn-remove {
+        background: transparent;
+        border: 1px solid #e05252;
+        color: #e05252;
+        border-radius: 6px;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+        width: 100%;
+        transition: background 0.15s, color 0.15s;
+    }
+    .btn-remove:hover { background: #e05252; color: #fff; }
+    .empty-state { text-align: center; padding: 5rem 1rem; color: var(--text-muted); }
+    .empty-state .icon { font-size: 4rem; margin-bottom: 1rem; }
+    .empty-state h4 { color: var(--text-main); margin-bottom: 0.5rem; }
+    #loadingSpinner { text-align: center; padding: 4rem; color: var(--text-muted); }
+</style>
+
+<div class="container py-5">
+    <h2 class="fw-bold mb-4">My Watchlist</h2>
+
+    <div class="wl-stat-bar" id="statBar" style="display:none">
+        <div class="wl-stat"><span class="val" id="sTotal">0</span><span class="lbl">Total</span></div>
+        <div class="wl-stat"><span class="val" style="color:#3b82f6" id="sWant">0</span><span class="lbl">Want to Watch</span></div>
+        <div class="wl-stat"><span class="val" style="color:#eab308" id="sWatching">0</span><span class="lbl">Watching</span></div>
+        <div class="wl-stat"><span class="val" style="color:#22c55e" id="sCompleted">0</span><span class="lbl">Completed</span></div>
+        <div class="wl-stat"><span class="val" id="sMovies">0</span><span class="lbl">Movies</span></div>
+        <div class="wl-stat"><span class="val" id="sSeries">0</span><span class="lbl">Series</span></div>
+    </div>
+
+    <div class="wl-filters">
+        <select id="filterStatus" onchange="applyFilters()">
+            <option value="">All Statuses</option>
+            <option value="WANT_TO_WATCH">Want to Watch</option>
+            <option value="WATCHING">Watching</option>
+            <option value="COMPLETED">Completed</option>
+        </select>
+        <select id="filterType" onchange="applyFilters()">
+            <option value="">All Types</option>
+            <option value="MOVIE">Movies</option>
+            <option value="SERIES">Series</option>
+        </select>
+    </div>
+
+    <div id="loadingSpinner">Loading your watchlist…</div>
+    <div id="emptyState" class="empty-state" style="display:none">
+        <div class="icon">🎬</div>
+        <h4>Your watchlist is empty</h4>
+        <p>Head over to <a href="/catalog" style="color:var(--amber)">Browse</a> to add some titles.</p>
+    </div>
+    <div class="row g-3" id="cardGrid"></div>
+</div>
+
+<div th:replace="~{layout/base :: scripts}"></div>
+
+<script>
+    (function () {
+        const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+        if (!token) { window.location.href = '/login'; return; }
+
+        function authHeaders() {
+            return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+        }
+
+        function statusLabel(s) {
+            if (s === 'WANT_TO_WATCH') return 'Want to Watch';
+            if (s === 'WATCHING')      return 'Watching';
+            if (s === 'COMPLETED')     return 'Completed';
+            return s;
+        }
+
+        function buildCard(entry) {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-4 col-md-3 col-lg-2';
+            col.dataset.tmdbId      = entry.tmdbId;
+            col.dataset.status      = entry.status;
+            col.dataset.contentType = entry.contentType;
+
+            const posterHtml = entry.posterUrl
+                ? `<img src="${entry.posterUrl}" alt="${entry.title}" class="wl-card-poster">`
+                : `<div class="wl-card-poster-placeholder">🎬</div>`;
+            const year = entry.releaseYear ? ` · ${entry.releaseYear}` : '';
+
+            col.innerHTML = `
+                <div class="wl-card">
+                    ${posterHtml}
+                    <div class="wl-card-body">
+                        <div class="wl-card-title" title="${entry.title}">${entry.title}</div>
+                        <div class="wl-card-meta">${entry.contentType}${year}</div>
+                        <span class="badge-status badge-${entry.status}" id="badge-${entry.tmdbId}">
+                            ${statusLabel(entry.status)}
+                        </span>
+                        <select class="wl-status-select" onchange="updateStatus(${entry.tmdbId}, this)">
+                            <option value="WANT_TO_WATCH" ${entry.status==='WANT_TO_WATCH'?'selected':''}>Want to Watch</option>
+                            <option value="WATCHING"      ${entry.status==='WATCHING'     ?'selected':''}>Watching</option>
+                            <option value="COMPLETED"     ${entry.status==='COMPLETED'    ?'selected':''}>Completed</option>
+                        </select>
+                        <button class="btn-remove" onclick="removeEntry(${entry.tmdbId}, this)">Remove</button>
+                    </div>
+                </div>`;
+            return col;
+        }
+
+        function renderGrid(entries) {
+            const grid = document.getElementById('cardGrid');
+            grid.innerHTML = '';
+            if (!entries || entries.length === 0) {
+                document.getElementById('emptyState').style.display = '';
+                return;
+            }
+            document.getElementById('emptyState').style.display = 'none';
+            entries.forEach(e => grid.appendChild(buildCard(e)));
+        }
+
+        function applyFilters() {
+            const status = document.getElementById('filterStatus').value;
+            const type   = document.getElementById('filterType').value;
+            const params = new URLSearchParams();
+            if (status) params.set('status', status);
+            if (type)   params.set('type', type);
+            const url = '/api/watchlist' + (params.toString() ? '?' + params.toString() : '');
+            fetch(url, { headers: authHeaders() })
+                .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+                .then(data => { if (data !== null) renderGrid(data); })
+                .catch(() => {});
+        }
+
+        function updateStatus(tmdbId, select) {
+            fetch('/api/watchlist/' + tmdbId, {
+                method: 'PATCH',
+                headers: authHeaders(),
+                body: JSON.stringify({ status: select.value })
+            })
+                .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+                .then(data => {
+                    if (!data) return;
+                    const badge = document.getElementById('badge-' + tmdbId);
+                    if (badge) { badge.className = 'badge-status badge-' + data.status; badge.textContent = statusLabel(data.status); }
+                    const col = select.closest('[data-tmdb-id]');
+                    if (col) col.dataset.status = data.status;
+                })
+                .catch(() => {});
+        }
+
+        function removeEntry(tmdbId, btn) {
+            btn.disabled = true;
+            fetch('/api/watchlist/' + tmdbId, { method: 'DELETE', headers: authHeaders() })
+                .then(r => {
+                    if (r.status === 401) { window.location.href = '/login'; return; }
+                    if (r.status === 204) {
+                        const col = btn.closest('[data-tmdb-id]');
+                        if (col) col.remove();
+                        loadStats();
+                        if (document.getElementById('cardGrid').children.length === 0)
+                            document.getElementById('emptyState').style.display = '';
+                    } else { btn.disabled = false; }
+                })
+                .catch(() => { btn.disabled = false; });
+        }
+
+        function loadStats() {
+            fetch('/api/watchlist/stats', { headers: authHeaders() })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    document.getElementById('sTotal').textContent     = data.total       ?? 0;
+                    document.getElementById('sWant').textContent      = data.wantToWatch ?? 0;
+                    document.getElementById('sWatching').textContent  = data.watching    ?? 0;
+                    document.getElementById('sCompleted').textContent = data.completed   ?? 0;
+                    document.getElementById('sMovies').textContent    = data.totalMovies ?? 0;
+                    document.getElementById('sSeries').textContent    = data.totalSeries ?? 0;
+                    document.getElementById('statBar').style.display = '';
+                })
+                .catch(() => {});
+        }
+
+        loadStats();
+        fetch('/api/watchlist', { headers: authHeaders() })
+            .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+            .then(data => {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                if (data !== null) renderGrid(data);
+            })
+            .catch(() => {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('emptyState').style.display = '';
+            });
+    })();
+</script>
+</body>
+</html>
