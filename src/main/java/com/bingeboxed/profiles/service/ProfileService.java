@@ -56,9 +56,9 @@ public class ProfileService {
         return profileRepository.save(profile);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PublicProfileResponse getPublicProfile(Long userId) {
-        Profile profile = getProfileByUserId(userId);
+        Profile profile = getOrCreateProfile(userId);
         return new PublicProfileResponse(profile);
     }
 

@@ -6,6 +6,7 @@ import com.bingeboxed.catalog.exception.TmdbUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 @Component
+@Profile("!test")
 public class CatalogClientImpl implements CatalogClient {
 
     private final HttpClient httpClient;

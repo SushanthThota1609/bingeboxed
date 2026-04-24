@@ -245,6 +245,63 @@ class WatchlistServiceTest {
         verify(repository).findByUserIdAndContentType(eq(USER_ID), eq(ContentType.SERIES), any(Sort.class));
     }
 
+    @Test
+    void getUserWatchlist_filtersByStatusAndContentType_whenBothProvided() {
+        when(repository.findByUserIdAndStatusAndContentType(
+                eq(USER_ID), eq(WatchlistStatus.WATCHING), eq(ContentType.SERIES), any(Sort.class)))
+                .thenReturn(List.of());
+
+        watchlistService.getUserWatchlist(USER_ID, "WATCHING", "SERIES");
+
+        verify(repository).findByUserIdAndStatusAndContentType(
+                eq(USER_ID), eq(WatchlistStatus.WATCHING), eq(ContentType.SERIES), any(Sort.class));
+    }
+
+    // --- getPublicWatchlist ---
+
+    @Test
+    void getPublicWatchlist_returnsAllEntries_whenNoFilters() {
+        when(repository.findByUserId(eq(USER_ID), any(Sort.class)))
+                .thenReturn(List.of(existingEntry));
+        when(catalogClient.getContentById(TMDB_ID, "movie")).thenReturn(contentResponse);
+
+        List<WatchlistResponse> result = watchlistService.getPublicWatchlist(USER_ID, null, null);
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void getPublicWatchlist_filtersByStatus_whenProvided() {
+        when(repository.findByUserIdAndStatus(eq(USER_ID), eq(WatchlistStatus.COMPLETED), any(Sort.class)))
+                .thenReturn(List.of());
+
+        watchlistService.getPublicWatchlist(USER_ID, "COMPLETED", null);
+
+        verify(repository).findByUserIdAndStatus(eq(USER_ID), eq(WatchlistStatus.COMPLETED), any(Sort.class));
+    }
+
+    @Test
+    void getPublicWatchlist_filtersByContentType_whenProvided() {
+        when(repository.findByUserIdAndContentType(eq(USER_ID), eq(ContentType.MOVIE), any(Sort.class)))
+                .thenReturn(List.of());
+
+        watchlistService.getPublicWatchlist(USER_ID, null, "MOVIE");
+
+        verify(repository).findByUserIdAndContentType(eq(USER_ID), eq(ContentType.MOVIE), any(Sort.class));
+    }
+
+    @Test
+    void getPublicWatchlist_filtersByStatusAndContentType_whenBothProvided() {
+        when(repository.findByUserIdAndStatusAndContentType(
+                eq(USER_ID), eq(WatchlistStatus.WANT_TO_WATCH), eq(ContentType.SERIES), any(Sort.class)))
+                .thenReturn(List.of());
+
+        watchlistService.getPublicWatchlist(USER_ID, "WANT_TO_WATCH", "SERIES");
+
+        verify(repository).findByUserIdAndStatusAndContentType(
+                eq(USER_ID), eq(WatchlistStatus.WANT_TO_WATCH), eq(ContentType.SERIES), any(Sort.class));
+    }
+
     // --- getEntry ---
 
     @Test
