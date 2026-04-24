@@ -1,10 +1,31 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Public Profile - BingeBoxed</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .avatar-placeholder {
+            width: 100px;
+            height: 100px;
+            background-color: #e9ecef;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #6c757d;
+        }
+        .avatar-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+    </style>
 </head>
-<body>
-<th:block th:fragment="section">
+<body class="bg-light">
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -29,7 +50,7 @@
         </div>
     </div>
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const userId = window.location.pathname.split('/').pop();
     const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
@@ -62,9 +83,9 @@
             document.getElementById('username').textContent = '@' + profile.username;
             document.getElementById('friendStats').textContent = `${profile.followerCount} followers · ${profile.followingCount} following`;
             if (profile.avatarUrl) {
-                document.getElementById('avatarContainer').innerHTML = `<img src="${profile.avatarUrl}" alt="Avatar" class="rounded-circle" width="100" height="100">`;
+                document.getElementById('avatarContainer').innerHTML = `<img src="${profile.avatarUrl}" alt="Avatar" class="avatar-img">`;
             } else {
-                document.getElementById('avatarContainer').innerHTML = '<div class="avatar-placeholder" style="width:100px;height:100px;background:#e9ecef;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:3rem;">👤</div>';
+                document.getElementById('avatarContainer').innerHTML = '<div class="avatar-placeholder">👤</div>';
             }
             // Friend request button based on friendship status
             const container = document.getElementById('friendRequestButtonContainer');
@@ -88,7 +109,7 @@
         })
         .catch(err => console.error('Error loading profile', err));
 
-    // Load watchlist
+    // Load watchlist - CORRECT URL with /api/
     fetchJson(`/api/watchlist/user/${userId}`)
         .then(entries => {
             const container = document.getElementById('watchlistContainer');
@@ -98,22 +119,21 @@
             }
             let html = '<div class="list-group">';
             entries.forEach(entry => {
-                // Handle possible field names: title, posterPath or posterUrl
-                const title = entry.title || 'Untitled';
-                const poster = entry.posterUrl || entry.posterPath;
-                const status = entry.status || '';
-                const rating = entry.rating;
-                const review = entry.review;
+                const metadata = entry.contentMetadata || {};
+                const title = metadata.title || `Content ${entry.tmdbId}`;
+                const posterUrl = metadata.posterUrl || null;
+                let rating = entry.rating || metadata.rating || null;
+                let review = entry.review || null;
                 html += `
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-0">${escapeHtml(title)}</h6>
-                                <small class="text-muted">Status: ${escapeHtml(status)}</small>
+                                <small class="text-muted">Status: ${entry.status}</small>
                                 ${rating ? `<br><small>Rating: ${rating}/10</small>` : ''}
                                 ${review ? `<p class="mt-1 mb-0 small">${escapeHtml(review)}</p>` : ''}
                             </div>
-                            ${poster ? `<img src="${poster}" height="50">` : ''}
+                            ${posterUrl ? `<img src="${posterUrl}" height="50" alt="poster">` : ''}
                         </div>
                     </div>
                 `;
@@ -174,6 +194,5 @@
         });
     }
 </script>
-</th:block>
 </body>
 </html>

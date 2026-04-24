@@ -3,13 +3,14 @@ package com.bingeboxed.watchlist.service;
 import com.bingeboxed.catalog.dto.ContentResponse;
 import com.bingeboxed.shared.client.CatalogClient;
 import com.bingeboxed.shared.exception.ResourceNotFoundException;
-import com.bingeboxed.watchlist.dto.ContainsResponse;
 import com.bingeboxed.watchlist.dto.WatchlistResponse;
 import com.bingeboxed.watchlist.dto.WatchlistStatsResponse;
 import com.bingeboxed.watchlist.entity.WatchlistEntry;
 import com.bingeboxed.watchlist.entity.WatchlistEntry.ContentType;
 import com.bingeboxed.watchlist.entity.WatchlistEntry.WatchlistStatus;
 import com.bingeboxed.watchlist.repository.WatchlistRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class WatchlistServiceImpl implements WatchlistService {
 
+    private static final Logger log = LoggerFactory.getLogger(WatchlistServiceImpl.class);
+
     private final WatchlistRepository watchlistRepository;
     private final CatalogClient catalogClient;
 
@@ -32,7 +35,6 @@ public class WatchlistServiceImpl implements WatchlistService {
 
     @Override
     public WatchlistResponse addToWatchlist(Long userId, Integer tmdbId, String contentTypeStr) {
-        // Validate contentType
         ContentType contentType;
         try {
             contentType = ContentType.valueOf(contentTypeStr.toUpperCase());
@@ -40,13 +42,11 @@ public class WatchlistServiceImpl implements WatchlistService {
             throw new IllegalArgumentException("Invalid contentType. Allowed: MOVIE, SERIES");
         }
 
-        // Verify content exists via CatalogClient
-        ContentResponse content = catalogClient.getContentById(tmdbId, contentTypeStr.toLowerCase());
+        ContentResponse content = fetchContentSafe(tmdbId, contentTypeStr.toLowerCase());
         if (content == null) {
             throw new ResourceNotFoundException("Content not found in catalog");
         }
 
-        // Check if already exists
         if (watchlistRepository.existsByUserIdAndTmdbId(userId, tmdbId)) {
             throw new DataIntegrityViolationException("Entry already exists for this user");
         }
@@ -77,7 +77,7 @@ public class WatchlistServiceImpl implements WatchlistService {
         entry.setStatus(status);
         WatchlistEntry updated = watchlistRepository.save(entry);
 
-        ContentResponse content = catalogClient.getContentById(tmdbId, entry.getContentType().name().toLowerCase());
+        ContentResponse content = fetchContentSafe(tmdbId, entry.getContentType().name().toLowerCase());
         return toResponse(updated, content);
     }
 
@@ -85,25 +85,10 @@ public class WatchlistServiceImpl implements WatchlistService {
     @Transactional(readOnly = true)
     public List<WatchlistResponse> getUserWatchlist(Long userId, String status, String contentType) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
-        List<WatchlistEntry> entries;
-
-        if (status != null && contentType != null) {
-            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
-            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndStatusAndContentType(userId, watchlistStatus, ct, sort);
-        } else if (status != null) {
-            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndStatus(userId, watchlistStatus, sort);
-        } else if (contentType != null) {
-            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndContentType(userId, ct, sort);
-        } else {
-            entries = watchlistRepository.findByUserId(userId, sort);
-        }
-
+        List<WatchlistEntry> entries = fetchEntries(userId, status, contentType, sort);
         return entries.stream()
                 .map(entry -> {
-                    ContentResponse content = catalogClient.getContentById(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
+                    ContentResponse content = fetchContentSafe(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
                     return toResponse(entry, content);
                 })
                 .collect(Collectors.toList());
@@ -112,27 +97,11 @@ public class WatchlistServiceImpl implements WatchlistService {
     @Override
     @Transactional(readOnly = true)
     public List<WatchlistResponse> getPublicWatchlist(Long userId, String status, String contentType) {
-        // Same as getUserWatchlist but without authentication check (no userId validation needed)
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
-        List<WatchlistEntry> entries;
-
-        if (status != null && contentType != null) {
-            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
-            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndStatusAndContentType(userId, watchlistStatus, ct, sort);
-        } else if (status != null) {
-            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndStatus(userId, watchlistStatus, sort);
-        } else if (contentType != null) {
-            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
-            entries = watchlistRepository.findByUserIdAndContentType(userId, ct, sort);
-        } else {
-            entries = watchlistRepository.findByUserId(userId, sort);
-        }
-
+        List<WatchlistEntry> entries = fetchEntries(userId, status, contentType, sort);
         return entries.stream()
                 .map(entry -> {
-                    ContentResponse content = catalogClient.getContentById(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
+                    ContentResponse content = fetchContentSafe(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
                     return toResponse(entry, content);
                 })
                 .collect(Collectors.toList());
@@ -143,7 +112,7 @@ public class WatchlistServiceImpl implements WatchlistService {
     public WatchlistResponse getEntry(Long userId, Integer tmdbId) {
         WatchlistEntry entry = watchlistRepository.findByUserIdAndTmdbId(userId, tmdbId)
                 .orElseThrow(() -> new ResourceNotFoundException("Watchlist entry not found"));
-        ContentResponse content = catalogClient.getContentById(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
+        ContentResponse content = fetchContentSafe(entry.getTmdbId(), entry.getContentType().name().toLowerCase());
         return toResponse(entry, content);
     }
 
@@ -163,6 +132,38 @@ public class WatchlistServiceImpl implements WatchlistService {
         long totalMovies = watchlistRepository.countByUserIdAndContentType(userId, ContentType.MOVIE);
         long totalSeries = watchlistRepository.countByUserIdAndContentType(userId, ContentType.SERIES);
         return new WatchlistStatsResponse(total, wantToWatch, watching, completed, totalMovies, totalSeries);
+    }
+
+    // Helper to fetch entries based on filters
+    private List<WatchlistEntry> fetchEntries(Long userId, String status, String contentType, Sort sort) {
+        if (status != null && contentType != null) {
+            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
+            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
+            return watchlistRepository.findByUserIdAndStatusAndContentType(userId, watchlistStatus, ct, sort);
+        } else if (status != null) {
+            WatchlistStatus watchlistStatus = WatchlistStatus.valueOf(status.toUpperCase());
+            return watchlistRepository.findByUserIdAndStatus(userId, watchlistStatus, sort);
+        } else if (contentType != null) {
+            ContentType ct = ContentType.valueOf(contentType.toUpperCase());
+            return watchlistRepository.findByUserIdAndContentType(userId, ct, sort);
+        } else {
+            return watchlistRepository.findByUserId(userId, sort);
+        }
+    }
+
+    // Safe fetch that never throws – returns placeholder if catalog fails
+    private ContentResponse fetchContentSafe(Integer tmdbId, String type) {
+        try {
+            ContentResponse content = catalogClient.getContentById(tmdbId, type);
+            if (content != null) {
+                return content;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch content from catalog for TMDB ID {} type {}: {}", tmdbId, type, e.getMessage());
+        }
+        // Return placeholder with minimal info
+        String title = (type.equals("movie") ? "Movie " : "Series ") + tmdbId;
+        return new ContentResponse(tmdbId, title, type.toUpperCase(), null, null, null, null);
     }
 
     private WatchlistResponse toResponse(WatchlistEntry entry, ContentResponse content) {
