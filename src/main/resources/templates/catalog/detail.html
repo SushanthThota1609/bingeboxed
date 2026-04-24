@@ -1,3 +1,4 @@
+<!-- // src/main/resources/templates/catalog/detail.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
 <head>
@@ -19,8 +20,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const type = urlParams.get('type');
         const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
-
+        const reviewContentType = type === 'movie' ? 'MOVIE' : 'SERIES';
+        
         let currentStatus = null;
+        let userReview = null;
 
         async function loadDetail() {
             const response = await fetch(`/api/catalog/${tmdbId}/detail?type=${type}`, {
@@ -34,7 +37,6 @@
 
             let watchlistButtonHtml = '';
             if (token) {
-                // Check if already in watchlist
                 try {
                     const checkResponse = await fetch(`/api/watchlist/contains/${tmdbId}`, {
                         headers: { 'Authorization': 'Bearer ' + token }
@@ -54,7 +56,7 @@
                     watchlistButtonHtml = `<button id="addToWatchlistBtn" class="btn btn-success">Add to Watchlist</button>`;
                 }
             } else {
-                watchlistButtonHtml = ''; // No token, hide button
+                watchlistButtonHtml = '';
             }
 
             document.getElementById('detailContainer').innerHTML = `
@@ -68,6 +70,73 @@
                         <p><strong>Genre:</strong> ${item.genre || 'Unknown'}</p>
                         <p><strong>Overview:</strong> ${escapeHtml(item.overview) || 'No overview available'}</p>
                         ${watchlistButtonHtml}
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h4>Community Rating</h4>
+                        <div id="averageRatingDisplay" class="mb-3">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${token ? `
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Your Review</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="existingReviewInfo" style="display: none;" class="alert alert-info">
+                                    You've already reviewed this content. Edit your review below:
+                                </div>
+                                <div id="noReviewInfo" style="display: block;" class="alert alert-secondary">
+                                    You haven't reviewed this content yet. Share your thoughts!
+                                </div>
+                                <form id="reviewForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rating</label>
+                                        <select id="rating" class="form-select" required>
+                                            <option value="">Select rating</option>
+                                            <option value="1">1 Star</option>
+                                            <option value="2">2 Stars</option>
+                                            <option value="3">3 Stars</option>
+                                            <option value="4">4 Stars</option>
+                                            <option value="5">5 Stars</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Your Review (optional)</label>
+                                        <textarea id="reviewText" class="form-control" rows="3" placeholder="Share your thoughts about this content..."></textarea>
+                                    </div>
+                                    <button type="button" id="submitReviewBtn" class="btn btn-primary">Submit Review</button>
+                                    <button type="button" id="updateReviewBtn" class="btn btn-warning" style="display: none;">Update Review</button>
+                                    <button type="button" id="deleteReviewBtn" class="btn btn-danger" style="display: none;">Delete Review</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <hr class="my-4">
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h4>All Reviews</h4>
+                        <div id="reviewsList">
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading reviews...</span>
+                                </div>
+                                <p class="mt-2">Loading reviews...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -108,6 +177,271 @@
                         alert('Network error. Please try again.');
                         addBtn.disabled = false;
                         addBtn.textContent = 'Add to Watchlist';
+                    }
+                });
+            }
+            
+            loadAverageRating();
+            loadAllReviews();
+            
+            if (token) {
+                await checkUserReview();
+                attachReviewFormListeners();
+            }
+        }
+        
+        function getAuthHeaders() {
+            const currentToken = localStorage.getItem('bb_token') || localStorage.getItem('token');
+            return {
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            };
+        }
+        
+        async function loadAverageRating() {
+            try {
+                const response = await fetch(`/api/reviews/content/${tmdbId}/rating`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const starsHtml = '★'.repeat(Math.round(data.averageRating)) + '☆'.repeat(5 - Math.round(data.averageRating));
+                    document.getElementById('averageRatingDisplay').innerHTML = `
+                        <div class="display-6">${data.averageRating.toFixed(1)} / 5.0</div>
+                        <div class="text-warning fs-4">${starsHtml}</div>
+                        <p class="mt-2">Based on ${data.reviewCount} review(s)</p>
+                    `;
+                } else {
+                    document.getElementById('averageRatingDisplay').innerHTML = '<p class="text-muted">No ratings yet</p>';
+                }
+            } catch (error) {
+                console.error('Error loading average rating:', error);
+                document.getElementById('averageRatingDisplay').innerHTML = '<p class="text-muted">Unable to load ratings</p>';
+            }
+        }
+        
+        async function checkUserReview() {
+            try {
+                const response = await fetch(`/api/reviews/contains/${tmdbId}`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.status === 401) {
+                    return;
+                }
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.hasReviewed) {
+                        userReview = data;
+                        document.getElementById('existingReviewInfo').style.display = 'block';
+                        document.getElementById('noReviewInfo').style.display = 'none';
+                        document.getElementById('submitReviewBtn').style.display = 'none';
+                        document.getElementById('updateReviewBtn').style.display = 'inline-block';
+                        document.getElementById('deleteReviewBtn').style.display = 'inline-block';
+                        
+                        if (data.rating) {
+                            document.getElementById('rating').value = data.rating;
+                        }
+                        
+                        const reviewResponse = await fetch(`/api/reviews/my/${tmdbId}`, {
+                            headers: getAuthHeaders()
+                        });
+                        if (reviewResponse.ok) {
+                            const review = await reviewResponse.json();
+                            document.getElementById('reviewText').value = review.reviewText || '';
+                        }
+                    } else {
+                        document.getElementById('existingReviewInfo').style.display = 'none';
+                        document.getElementById('noReviewInfo').style.display = 'block';
+                        document.getElementById('submitReviewBtn').style.display = 'inline-block';
+                        document.getElementById('updateReviewBtn').style.display = 'none';
+                        document.getElementById('deleteReviewBtn').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking user review:', error);
+            }
+        }
+        
+        async function loadAllReviews() {
+            try {
+                const response = await fetch(`/api/reviews/content/${tmdbId}`);
+                if (response.ok) {
+                    const reviews = await response.json();
+                    renderReviews(reviews);
+                } else {
+                    document.getElementById('reviewsList').innerHTML = '<p class="text-muted text-center">Unable to load reviews</p>';
+                }
+            } catch (error) {
+                console.error('Error loading reviews:', error);
+                document.getElementById('reviewsList').innerHTML = '<p class="text-muted text-center">Error loading reviews</p>';
+            }
+        }
+        
+        function renderReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            
+            if (!reviews || reviews.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No reviews yet. Be the first to review!</p>';
+                return;
+            }
+            
+            container.innerHTML = reviews.map(review => `
+                <div class="border-bottom pb-3 mb-3">
+                    <div>
+                        <strong>${escapeHtml(review.user?.displayName || 'Anonymous')}</strong>
+                        <div class="text-warning">
+                            ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                            <span class="text-muted ms-2">${review.rating}/5</span>
+                        </div>
+                        ${review.reviewText ? `<p class="mt-2">${escapeHtml(review.reviewText)}</p>` : ''}
+                        <small class="text-muted">Reviewed on ${new Date(review.createdAt).toLocaleDateString()}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function attachReviewFormListeners() {
+            const submitBtn = document.getElementById('submitReviewBtn');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    
+                    const rating = parseInt(document.getElementById('rating').value);
+                    const reviewText = document.getElementById('reviewText').value;
+                    
+                    if (!rating) {
+                        alert('Please select a rating');
+                        return;
+                    }
+                    
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Submitting...';
+                    
+                    try {
+                        const response = await fetch('/api/reviews', {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ 
+                                tmdbId: parseInt(tmdbId), 
+                                contentType: reviewContentType, 
+                                rating, 
+                                reviewText 
+                            })
+                        });
+                        
+                        if (response.status === 401) {
+                            alert('Please login to submit a review');
+                            window.location.href = '/login';
+                            return;
+                        }
+                        
+                        if (response.ok) {
+                            alert('Review submitted successfully!');
+                            await loadAverageRating();
+                            await loadAllReviews();
+                            await checkUserReview();
+                        } else if (response.status === 503) {
+                            alert('Catalog service is temporarily unavailable. Your review has been saved!');
+                            await loadAverageRating();
+                            await loadAllReviews();
+                            await checkUserReview();
+                        } else {
+                            const error = await response.json();
+                            alert(error.error || 'Failed to submit review');
+                        }
+                    } catch (error) {
+                        console.error('Error submitting review:', error);
+                        alert('Network error. Please try again.');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit Review';
+                    }
+                });
+            }
+            
+            const updateBtn = document.getElementById('updateReviewBtn');
+            if (updateBtn) {
+                updateBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    
+                    const rating = parseInt(document.getElementById('rating').value);
+                    const reviewText = document.getElementById('reviewText').value;
+                    
+                    if (!rating) {
+                        alert('Please select a rating');
+                        return;
+                    }
+                    
+                    updateBtn.disabled = true;
+                    updateBtn.textContent = 'Updating...';
+                    
+                    try {
+                        const response = await fetch(`/api/reviews/${tmdbId}`, {
+                            method: 'PUT',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ rating, reviewText })
+                        });
+                        
+                        if (response.status === 401) {
+                            alert('Please login to update your review');
+                            window.location.href = '/login';
+                            return;
+                        }
+                        
+                        if (response.ok) {
+                            alert('Review updated successfully!');
+                            await loadAverageRating();
+                            await loadAllReviews();
+                            await checkUserReview();
+                        } else {
+                            const error = await response.json();
+                            alert(error.error || 'Failed to update review');
+                        }
+                    } catch (error) {
+                        console.error('Error updating review:', error);
+                        alert('Network error. Please try again.');
+                    } finally {
+                        updateBtn.disabled = false;
+                        updateBtn.textContent = 'Update Review';
+                    }
+                });
+            }
+            
+            const deleteReviewBtn = document.getElementById('deleteReviewBtn');
+            if (deleteReviewBtn) {
+                deleteReviewBtn.addEventListener('click', async () => {
+                    if (!confirm('Are you sure you want to delete your review?')) {
+                        return;
+                    }
+                    
+                    deleteReviewBtn.disabled = true;
+                    deleteReviewBtn.textContent = 'Deleting...';
+                    
+                    try {
+                        const response = await fetch(`/api/reviews/${tmdbId}`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders()
+                        });
+                        
+                        if (response.status === 401) {
+                            alert('Please login to delete a review');
+                            window.location.href = '/login';
+                            return;
+                        }
+                        
+                        if (response.ok) {
+                            alert('Review deleted successfully!');
+                            userReview = null;
+                            await loadAverageRating();
+                            await loadAllReviews();
+                            await checkUserReview();
+                        } else {
+                            alert('Failed to delete review');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting review:', error);
+                        alert('Network error. Please try again.');
+                    } finally {
+                        deleteReviewBtn.disabled = false;
+                        deleteReviewBtn.textContent = 'Delete Review';
                     }
                 });
             }

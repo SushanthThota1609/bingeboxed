@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>My Reviews | BingeBoxed</title>
+</head>
+<body>
+<section class="container py-4">
+    <div id="authCheck" class="alert alert-warning" style="display: none;">
+        <h4 class="alert-heading">Authentication Required</h4>
+        <p>Please <a href="/login" class="alert-link">login</a> to view your reviews.</p>
+    </div>
+    
+    <div id="reviewsApp" style="display: none;">
+        <h2 class="mb-4">My Reviews</h2>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Your Reviews</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviewsLoading" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Loading your reviews...</p>
+                        </div>
+                        <div id="reviewsList"></div>
+                        <div id="emptyState" class="text-center py-5" style="display: none;">
+                            <p class="lead">No reviews yet</p>
+                            <p class="text-muted">Start reviewing movies and series from the catalog!</p>
+                            <a href="/catalog" class="btn btn-primary">Browse Catalog</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Check for token
+        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        
+        if (!token) {
+            document.getElementById('authCheck').style.display = 'block';
+            // Redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            document.getElementById('reviewsApp').style.display = 'block';
+            loadReviews();
+        }
+        
+        async function loadReviews() {
+            try {
+                const response = await fetch('/api/reviews/my', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.status === 401) {
+                    // Token expired or invalid
+                    localStorage.removeItem('bb_token');
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                if (response.ok) {
+                    const reviews = await response.json();
+                    displayReviews(reviews);
+                } else {
+                    document.getElementById('reviewsLoading').innerHTML = '<p class="text-danger">Failed to load reviews</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('reviewsLoading').innerHTML = '<p class="text-danger">Network error</p>';
+            }
+        }
+        
+        function displayReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            const loading = document.getElementById('reviewsLoading');
+            const emptyState = document.getElementById('emptyState');
+            
+            loading.style.display = 'none';
+            
+            if (!reviews || reviews.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = reviews.map(review => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <a href="/catalog/${review.tmdbId}?type=${review.contentType === 'MOVIE' ? 'movie' : 'series'}" class="h6 text-decoration-none">
+                                    ${escapeHtml(review.content?.title || 'Unknown Title')}
+                                </a>
+                                <span class="badge ${review.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} ms-2">${review.contentType}</span>
+                                <div class="mt-2">
+                                    <span class="text-warning">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</span>
+                                    <span class="ms-2">${review.rating}/5</span>
+                                </div>
+                                ${review.reviewText ? `<p class="mt-2">${escapeHtml(review.reviewText)}</p>` : ''}
+                                <small class="text-muted">${new Date(review.createdAt).toLocaleDateString()}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteReview(${review.tmdbId})">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        window.deleteReview = async function(tmdbId) {
+            if (!confirm('Delete this review?')) return;
+            
+            try {
+                const response = await fetch(`/api/reviews/${tmdbId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (response.ok) {
+                    alert('Review deleted!');
+                    loadReviews();
+                } else {
+                    alert('Failed to delete');
+                }
+            } catch (error) {
+                alert('Network error');
+            }
+        };
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</section>
+</body>
+</html>

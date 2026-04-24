@@ -1,3 +1,4 @@
+// src/main/resources/templates/layout/base.html
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, section)" lang="en">
 <head>
@@ -24,6 +25,9 @@
                 </li>
                 <li class="nav-item d-none" id="watchlistNavItem">
                     <a class="nav-link" href="/watchlist">My Watchlist</a>
+                </li>
+                <li class="nav-item d-none" id="reviewsNavItem">
+                    <a class="nav-link" href="/reviews">My Reviews</a>
                 </li>
                 <li class="nav-item d-none" id="socialNavItem">
                     <a class="nav-link" href="/social">Social</a>
@@ -54,27 +58,54 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     (function () {
-        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
-        if (token) {
-            document.getElementById('loginNavItem').classList.add('d-none');
-            document.getElementById('registerNavItem').classList.add('d-none');
-            document.getElementById('profileNavItem').classList.remove('d-none');
-            document.getElementById('logoutNavItem').classList.remove('d-none');
-            document.getElementById('watchlistNavItem').classList.remove('d-none');
-            document.getElementById('socialNavItem').classList.remove('d-none');
+        // Helper function to get token
+        function getToken() {
+            return localStorage.getItem('bb_token') || localStorage.getItem('token');
         }
-        document.getElementById('navLogoutBtn').addEventListener('click', function (e) {
-            e.preventDefault();
-            const t = localStorage.getItem('token') || localStorage.getItem('bb_token');
-            fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + t }
-            }).finally(function () {
-                localStorage.removeItem('token');
-                localStorage.removeItem('bb_token');
-                window.location.href = '/login';
+        
+        // Helper function to set token
+        function setToken(token) {
+            localStorage.setItem('bb_token', token);
+            localStorage.setItem('token', token);
+        }
+        
+        const token = getToken();
+        
+        console.log('Base layout - Token exists:', !!token);
+        
+        if (token) {
+            const loginNav = document.getElementById('loginNavItem');
+            const registerNav = document.getElementById('registerNavItem');
+            const profileNav = document.getElementById('profileNavItem');
+            const logoutNav = document.getElementById('logoutNavItem');
+            const watchlistNav = document.getElementById('watchlistNavItem');
+            const reviewsNav = document.getElementById('reviewsNavItem');
+            const socialNav = document.getElementById('socialNavItem');
+            
+            if (loginNav) loginNav.classList.add('d-none');
+            if (registerNav) registerNav.classList.add('d-none');
+            if (profileNav) profileNav.classList.remove('d-none');
+            if (logoutNav) logoutNav.classList.remove('d-none');
+            if (watchlistNav) watchlistNav.classList.remove('d-none');
+            if (reviewsNav) reviewsNav.classList.remove('d-none');
+            if (socialNav) socialNav.classList.remove('d-none');
+        }
+        
+        const logoutBtn = document.getElementById('navLogoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const t = getToken();
+                fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + t }
+                }).finally(function () {
+                    localStorage.removeItem('bb_token');
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                });
             });
-        });
+        }
     })();
 </script>
 </body>

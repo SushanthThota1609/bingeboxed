@@ -1,3 +1,4 @@
+// src/main/java/com/bingeboxed/shared/security/SecurityConfig.java
 package com.bingeboxed.shared.security;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,11 +34,18 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/api/catalog/**", 
-                                         "/api/watchlist/user/**", "/api/social/counts/**",
-                                         "/login", "/register", "/profile", "/profile/edit", "/", 
-                                         "/catalog", "/catalog/**", "/watchlist", "/social",
-                                         "/watchlist/user/**", "/profile/public/**").permitAll()
+                        // Public endpoints - no authentication required
+                        .requestMatchers("/", "/login", "/register", "/catalog", "/catalog/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/api/catalog/**").permitAll()
+                        .requestMatchers("/api/watchlist/user/**", "/api/social/counts/**").permitAll()
+                        .requestMatchers("/api/reviews/content/**", "/api/reviews/user/**").permitAll()
+                        .requestMatchers("/api/reviews/*/rating").permitAll()
+                        // These pages should be accessible to authenticated users via session
+                        // But they don't require token in header - the page will load and JS will make API calls
+                        .requestMatchers("/reviews", "/profile", "/profile/**", "/watchlist", "/watchlist/**", "/social").permitAll()
+                        // API endpoints require authentication
+                        .requestMatchers("/api/reviews/my", "/api/reviews/my/**", "/api/reviews/stats", "/api/reviews/contains/**").authenticated()
+                        .requestMatchers("/api/reviews/*").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
