@@ -41,6 +41,7 @@ class ReviewServiceTest {
     private static final int TMDB_CHECK    = 424;      // Schindler's List
     private static final int TMDB_STATS    = 389;      // 12 Angry Men
     private static final int TMDB_SERIES   = 1396;     // Breaking Bad
+    private static final int TMDB_USER_INFO_TEST = 9991; // Test content for user info
 
     @BeforeEach
     void setup() throws Exception {
@@ -312,8 +313,19 @@ class ReviewServiceTest {
     }
 
     @Test
-    void getContentReviews_returns200_withUserInfo() throws Exception {
-        mockMvc.perform(get("/api/reviews/content/" + TMDB_CONTENT))
+    void getContentReviews_returnsUserInfo_whenReviewsExist() throws Exception {
+        // Create a review first
+        mockMvc.perform(post("/api/reviews")
+                .header("Authorization", "Bearer " + authToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tmdbId\":" + TMDB_USER_INFO_TEST + ","
+                        + "\"contentType\":\"MOVIE\","
+                        + "\"rating\":5,"
+                        + "\"reviewText\":\"Test review for user info\"}"))
+                .andExpect(status().isCreated());
+
+        // Now get content reviews - should have user info
+        mockMvc.perform(get("/api/reviews/content/" + TMDB_USER_INFO_TEST))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].user.userId").exists())
                 .andExpect(jsonPath("$[0].user.displayName").exists());
@@ -333,18 +345,24 @@ class ReviewServiceTest {
 
     @Test
     void getPublicUserReviews_returns200_withoutAuth() throws Exception {
-        mockMvc.perform(get("/api/reviews/user/1"))
+        // First create current user's ID by getting profile
+        MvcResult profileResult = mockMvc.perform(get("/api/profiles/me")
+                        .header("Authorization", "Bearer " + authToken))
+                .andReturn();
+        String profileBody = profileResult.getResponse().getContentAsString();
+        JsonNode profileNode = objectMapper.readTree(profileBody);
+        Long currentUserId = profileNode.get("id").asLong();
+        
+        mockMvc.perform(get("/api/reviews/user/" + currentUserId))
                 .andExpect(status().isOk());
     }
 
     @Test
     void getPublicUserReviews_returnsEmptyList_whenUserHasNoReviews() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/reviews/user/99999"))
+        mockMvc.perform(get("/api/reviews/user/99999"))
                 .andExpect(status().isOk())
-                .andReturn();
-
-        String body = result.getResponse().getContentAsString();
-        assertThat(body).contains("[]");
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -505,7 +523,7 @@ class ReviewServiceTest {
 
     @Test
     void completeReviewFlow_createUpdateDelete() throws Exception {
-        int tmdbId = 9991;
+        int tmdbId = 9992;
         
         // 1. Create review
         mockMvc.perform(post("/api/reviews")
