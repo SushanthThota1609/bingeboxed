@@ -4,9 +4,7 @@
 <head th:replace="~{layout/base :: head(${content.title} + ' — BingeBoxed')}">
 </head>
 <body>
-
 <div th:replace="~{layout/base :: nav('catalog')}"></div>
-
 <style>
     .poster-img { max-width: 320px; width: 100%; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
     .poster-placeholder {
@@ -33,6 +31,33 @@
     }
     .btn-watchlist:hover    { background: #ffb83d; }
     .btn-watchlist:disabled { opacity: 0.6; cursor: not-allowed; }
+    /* Reviews section */
+    .review-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .review-item { border-bottom: 1px solid var(--border); padding: 1rem 0; }
+    .review-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .star-display { color: var(--amber); }
+    .star-empty   { color: #3a3f52; }
+    .rating-badge { background: rgba(245,166,35,0.15); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.85rem; font-weight: 700; }
+    .btn-review {
+        background: transparent; border: 1px solid var(--amber); color: var(--amber);
+        border-radius: 7px; padding: 0.45rem 1rem; font-size: 0.875rem; cursor: pointer;
+        font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .btn-review:hover { background: var(--amber); color: #0a0c12; }
+    .btn-review-save {
+        background: var(--amber); border: none; border-radius: 7px; color: #0a0c12;
+        font-weight: 600; padding: 0.5rem 1.2rem; font-size: 0.875rem; cursor: pointer;
+        font-family: 'DM Sans', sans-serif; transition: background 0.15s;
+    }
+    .btn-review-save:hover { background: #ffb83d; }
+    .review-textarea {
+        width: 100%; background: #0f1118; border: 1px solid var(--border); color: var(--text-main);
+        border-radius: 7px; padding: 0.6rem 0.85rem; font-family: 'DM Sans', sans-serif;
+        font-size: 0.9rem; resize: vertical; min-height: 80px;
+    }
+    .review-textarea:focus { outline: none; border-color: var(--amber); }
+    .star-selector span { font-size: 1.5rem; cursor: pointer; color: #3a3f52; transition: color 0.1s; user-select: none; }
+    .star-selector span.lit { color: var(--amber); }
 </style>
 
 <div class="container py-5">
@@ -52,6 +77,8 @@
                 <span style="color:var(--text-muted)" th:if="${content.genre != null}">
                     · <span th:text="${content.genre}">Genre</span>
                 </span>
+                <!-- Avg rating badge populated by JS -->
+                <span id="avgRatingBadge" class="rating-badge" style="display:none"></span>
             </div>
             <p style="color:var(--text-main);line-height:1.7;font-size:1.05rem"
                th:if="${content.overview != null and !#strings.isEmpty(content.overview)}"
@@ -68,56 +95,266 @@
             <div id="watchlistMsg" class="mt-2" style="font-size:0.85rem;color:var(--text-muted)"></div>
         </div>
     </div>
+
+    <!-- ── Review form (authenticated only) ─────────────────────────────── -->
+    <div class="mt-5" id="reviewFormSection" style="display:none">
+        <div class="review-section">
+            <h5 class="mb-3" style="font-weight:700">Your Review</h5>
+            <div id="myReviewDisplay" style="display:none">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <span id="myReviewStars"></span>
+                    <button class="btn-review" onclick="openEditForm()">Edit</button>
+                    <button class="btn-review" style="border-color:#e05252;color:#e05252" onclick="deleteMyReview()">Delete</button>
+                </div>
+                <p id="myReviewText" style="color:var(--text-muted);font-size:0.9rem;margin:0"></p>
+            </div>
+            <div id="myReviewForm">
+                <div class="mb-3">
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:0.4rem">Your Rating</label>
+                    <div class="star-selector" id="formStars">
+                        <span onclick="setFormStar(1)">★</span>
+                        <span onclick="setFormStar(2)">★</span>
+                        <span onclick="setFormStar(3)">★</span>
+                        <span onclick="setFormStar(4)">★</span>
+                        <span onclick="setFormStar(5)">★</span>
+                    </div>
+                </div>
+                <textarea class="review-textarea mb-3" id="formReviewText" placeholder="Write your review (optional)…"></textarea>
+                <button class="btn-review-save" onclick="submitReview()">Submit Review</button>
+                <span id="formMsg" style="font-size:0.85rem;color:#e05252;margin-left:0.75rem"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── All reviews (public) ──────────────────────────────────────────── -->
+    <div class="mt-4">
+        <h5 class="mb-3" style="font-weight:700">
+            Community Reviews
+            <span id="reviewCountLabel" style="color:var(--text-muted);font-size:0.9rem;font-weight:400"></span>
+        </h5>
+        <div id="allReviewsList">
+            <p style="color:var(--text-muted);font-style:italic">Loading reviews…</p>
+        </div>
+    </div>
 </div>
 
 <div th:replace="~{layout/base :: scripts}"></div>
-
 <script>
-    (function () {
-        const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
-        const btn   = document.getElementById('watchlistBtn');
-        const msg   = document.getElementById('watchlistMsg');
-        const tmdbId      = btn.dataset.tmdbId;
-        const contentType = btn.dataset.contentType;
+(function () {
+    const token       = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+    const btn         = document.getElementById('watchlistBtn');
+    const msg         = document.getElementById('watchlistMsg');
+    const tmdbId      = btn.dataset.tmdbId;
+    const contentType = btn.dataset.contentType;
 
-        if (!token) return; // hide button entirely if no token
-
-        btn.style.display = '';
-
-        function authHeaders() {
-            return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    function authHeaders() {
+        return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    }
+    function escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function stars(rating) {
+        let s = '';
+        for (let i = 1; i <= 5; i++) {
+            s += i <= rating ? '<span class="star-display">★</span>' : '<span class="star-empty">★</span>';
         }
+        return s;
+    }
 
+    // ── Watchlist ──────────────────────────────────────────────────────────
+    if (token) {
+        btn.style.display = '';
         fetch('/api/watchlist/contains/' + tmdbId, { headers: authHeaders() })
             .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
             .then(data => {
                 if (!data) return;
-                if (data.exists) {
-                    btn.textContent      = '✓ Already in Watchlist';
-                    btn.disabled         = true;
-                    btn.style.background = '#2d6a4f';
-                }
+                if (data.exists) { btn.textContent = '✓ Already in Watchlist'; btn.disabled = true; btn.style.background = '#2d6a4f'; }
             })
             .catch(() => {});
-
         btn.addEventListener('click', function () {
             btn.disabled = true;
             fetch('/api/watchlist', {
-                method: 'POST',
-                headers: authHeaders(),
+                method: 'POST', headers: authHeaders(),
                 body: JSON.stringify({ tmdbId: parseInt(tmdbId), contentType: contentType })
             })
-                .then(r => {
-                    if (r.status === 401) { window.location.href = '/login'; return null; }
-                    if (r.status === 409) { btn.textContent = '✓ Already in Watchlist'; btn.style.background = '#2d6a4f'; return null; }
-                    if (r.ok) { btn.textContent = '✓ Added'; btn.style.background = '#2d6a4f'; msg.textContent = 'Saved to your watchlist.'; return null; }
-                    btn.disabled = false;
-                    msg.textContent = 'Could not add to watchlist.';
-                    return null;
-                })
-                .catch(() => { btn.disabled = false; msg.textContent = 'Network error — please try again.'; });
+            .then(r => {
+                if (r.status === 401) { window.location.href = '/login'; return null; }
+                if (r.status === 409) { btn.textContent = '✓ Already in Watchlist'; btn.style.background = '#2d6a4f'; return null; }
+                if (r.ok) { btn.textContent = '✓ Added'; btn.style.background = '#2d6a4f'; msg.textContent = 'Saved to your watchlist.'; return null; }
+                btn.disabled = false; msg.textContent = 'Could not add to watchlist.';
+                return null;
+            })
+            .catch(() => { btn.disabled = false; msg.textContent = 'Network error — please try again.'; });
         });
-    })();
+    }
+
+    // ── Average rating badge ───────────────────────────────────────────────
+    fetch('/api/reviews/content/' + tmdbId + '/rating')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (!data) return;
+            const badge = document.getElementById('avgRatingBadge');
+            if (data.reviewCount > 0) {
+                badge.textContent = '★ ' + data.averageRating.toFixed(1) + ' (' + data.reviewCount + ')';
+                badge.style.display = '';
+            }
+        })
+        .catch(() => {});
+
+    // ── Review form (auth) ────────────────────────────────────────────────
+    let formRating  = 0;
+    let editMode    = false;
+
+    window.setFormStar = function(val) {
+        formRating = val;
+        [...document.getElementById('formStars').children].forEach((s, i) => {
+            s.classList.toggle('lit', i < val);
+        });
+    };
+
+    if (token) {
+        document.getElementById('reviewFormSection').style.display = '';
+        // Check if user already reviewed
+        fetch('/api/reviews/contains/' + tmdbId, { headers: authHeaders() })
+            .then(r => { if (r.status === 401) return null; return r.ok ? r.json() : null; })
+            .then(data => {
+                if (!data) return;
+                if (data.hasReviewed) loadMyReview();
+            })
+            .catch(() => {});
+    }
+
+    function loadMyReview() {
+        fetch('/api/reviews/my/' + tmdbId, { headers: authHeaders() })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                showMyReview(data);
+            })
+            .catch(() => {});
+    }
+
+    function showMyReview(data) {
+        editMode = true;
+        formRating = data.rating;
+        document.getElementById('myReviewDisplay').style.display = '';
+        document.getElementById('myReviewForm').style.display    = 'none';
+        document.getElementById('myReviewStars').innerHTML = stars(data.rating);
+        document.getElementById('myReviewText').textContent = data.reviewText || '';
+    }
+
+    window.openEditForm = function() {
+        document.getElementById('myReviewDisplay').style.display = 'none';
+        document.getElementById('myReviewForm').style.display    = '';
+        // Pre-fill form
+        fetch('/api/reviews/my/' + tmdbId, { headers: authHeaders() })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                setFormStar(data.rating);
+                document.getElementById('formReviewText').value = data.reviewText || '';
+            })
+            .catch(() => {});
+    };
+
+    window.deleteMyReview = function() {
+        if (!confirm('Delete your review?')) return;
+        fetch('/api/reviews/' + tmdbId, { method: 'DELETE', headers: authHeaders() })
+            .then(r => {
+                if (r.ok || r.status === 204) {
+                    editMode = false;
+                    formRating = 0;
+                    document.getElementById('myReviewDisplay').style.display = 'none';
+                    document.getElementById('myReviewForm').style.display    = '';
+                    document.getElementById('formReviewText').value = '';
+                    setFormStar(0);
+                    loadAllReviews();
+                    refreshRatingBadge();
+                }
+            })
+            .catch(() => {});
+    };
+
+    window.submitReview = function() {
+        const text = document.getElementById('formReviewText').value.trim();
+        const msgEl = document.getElementById('formMsg');
+        msgEl.textContent = '';
+
+        if (!formRating) { msgEl.textContent = 'Please select a rating.'; return; }
+
+        const method = editMode ? 'PUT' : 'POST';
+        const url    = editMode ? '/api/reviews/' + tmdbId : '/api/reviews';
+        const body   = editMode
+            ? { rating: formRating, reviewText: text || null }
+            : { tmdbId: parseInt(tmdbId), contentType: contentType, rating: formRating, reviewText: text || null };
+
+        fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) })
+            .then(r => {
+                if (r.status === 401) { window.location.href = '/login'; return null; }
+                if (r.status === 409) { msgEl.textContent = 'You already reviewed this.'; return null; }
+                if (!r.ok) { msgEl.textContent = 'Failed to save review.'; return null; }
+                return r.json();
+            })
+            .then(data => {
+                if (!data) return;
+                showMyReview(data);
+                loadAllReviews();
+                refreshRatingBadge();
+            })
+            .catch(() => { msgEl.textContent = 'Network error.'; });
+    };
+
+    // ── All reviews ────────────────────────────────────────────────────────
+    function loadAllReviews() {
+        fetch('/api/reviews/content/' + tmdbId)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                const list  = document.getElementById('allReviewsList');
+                const label = document.getElementById('reviewCountLabel');
+                label.textContent = '(' + data.length + ')';
+                if (!data.length) {
+                    list.innerHTML = '<p style="color:var(--text-muted);font-style:italic">No reviews yet. Be the first!</p>';
+                    return;
+                }
+                list.innerHTML = data.map(r => {
+                    const text = r.reviewText
+                        ? `<p style="color:var(--text-muted);font-size:0.88rem;margin:0.4rem 0 0">${escHtml(r.reviewText)}</p>`
+                        : '';
+                    const date = new Date(r.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+                    return `
+                    <div class="review-item">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <strong style="font-size:0.9rem">${escHtml(r.displayName || 'User')}</strong>
+                            <span>${stars(r.rating)}</span>
+                            <span style="color:var(--text-muted);font-size:0.78rem;margin-left:auto">${date}</span>
+                        </div>
+                        ${text}
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => {});
+    }
+
+    function refreshRatingBadge() {
+        fetch('/api/reviews/content/' + tmdbId + '/rating')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                const badge = document.getElementById('avgRatingBadge');
+                if (data.reviewCount > 0) {
+                    badge.textContent = '★ ' + data.averageRating.toFixed(1) + ' (' + data.reviewCount + ')';
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(() => {});
+    }
+
+    loadAllReviews();
+})();
 </script>
 </body>
 </html>

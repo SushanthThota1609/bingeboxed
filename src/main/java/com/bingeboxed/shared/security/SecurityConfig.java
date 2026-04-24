@@ -1,3 +1,4 @@
+// src/main/java/com/bingeboxed/shared/security/SecurityConfig.java
 package com.bingeboxed.shared.security;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,11 +35,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/profiles/public/**").permitAll()
                         .requestMatchers("/api/watchlist/user/**").permitAll()
                         .requestMatchers("/api/social/counts/**").permitAll()
+                        // ── reviews public endpoints ──────────────────────
+                        .requestMatchers("/api/reviews/content/**").permitAll()
+                        .requestMatchers("/api/reviews/user/**").permitAll()
+                        // ─────────────────────────────────────────────────
                         .requestMatchers("/login", "/register").permitAll()
                         .requestMatchers("/profile", "/profile/edit").permitAll()
                         .requestMatchers("/catalog", "/catalog/**").permitAll()
                         .requestMatchers("/watchlist", "/watchlist/user/**").permitAll()
                         .requestMatchers("/social", "/social/**").permitAll()
+                        .requestMatchers("/reviews", "/reviews/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated()
                 )

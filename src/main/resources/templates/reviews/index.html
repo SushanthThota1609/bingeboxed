@@ -1,0 +1,324 @@
+<!-- src/main/resources/templates/reviews/index.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/base :: head('My Reviews – BingeBoxed')}"></head>
+<body>
+<div th:replace="~{layout/base :: nav('reviews')}"></div>
+
+<style>
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
+    .stat-card { background: #0f1118; border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; text-align: center; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--amber); }
+    .stat-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .review-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; transition: border-color 0.2s; }
+    .review-card:hover { border-color: rgba(245,166,35,0.35); }
+    .poster-thumb { width: 60px; height: 90px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+    .poster-thumb-placeholder { width: 60px; height: 90px; background: #1a1f2e; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+    .star-display { color: var(--amber); letter-spacing: 0.05em; }
+    .star-empty   { color: #3a3f52; }
+    .badge-type { background: rgba(245,166,35,0.12); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); border-radius: 5px; padding: 0.15rem 0.5rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; }
+    .filter-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+    select, input[type=number] { background: #0f1118; border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; padding: 0.4rem 0.7rem; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; }
+    select:focus, input[type=number]:focus { outline: none; border-color: var(--amber); }
+    .btn-amber { background: var(--amber); border: none; border-radius: 7px; color: #0a0c12; font-weight: 600; padding: 0.45rem 1.1rem; font-size: 0.875rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+    .btn-amber:hover { background: #ffb83d; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); border-radius: 7px; padding: 0.4rem 0.9rem; font-size: 0.85rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .btn-ghost:hover { border-color: var(--text-muted); color: var(--text-main); }
+    .btn-danger-ghost { background: transparent; border: 1px solid #e05252; color: #e05252; border-radius: 7px; padding: 0.35rem 0.8rem; font-size: 0.82rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .btn-danger-ghost:hover { background: #e05252; color: #fff; }
+    .edit-form { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .edit-textarea { width: 100%; background: #0f1118; border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; padding: 0.6rem 0.8rem; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; resize: vertical; min-height: 80px; }
+    .edit-textarea:focus { outline: none; border-color: var(--amber); }
+    .star-selector { display: flex; gap: 0.25rem; align-items: center; }
+    .star-selector span { font-size: 1.4rem; cursor: pointer; color: #3a3f52; transition: color 0.1s; user-select: none; }
+    .star-selector span.active { color: var(--amber); }
+    .rating-bar-wrap { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; }
+    .rating-bar-bg { flex: 1; background: #1a1f2e; border-radius: 99px; height: 6px; overflow: hidden; }
+    .rating-bar-fill { height: 100%; background: var(--amber); border-radius: 99px; transition: width 0.4s; }
+    .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+    .empty-state .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
+    #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a2e1a; border: 1px solid #2d6a4f; color: #86efac; border-radius: 8px; padding: 0.75rem 1.25rem; font-size: 0.875rem; display: none; z-index: 9999; }
+    #toast.error { background: #2e1a1a; border-color: #6a2d2d; color: #fca5a5; }
+</style>
+
+<div class="container py-5" id="mainContent">
+
+    <!-- Stats -->
+    <div class="mb-4" id="statsSection" style="display:none">
+        <h5 class="mb-3" style="color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em">Review Statistics</h5>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Reviews</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card"><div class="stat-value" id="statAvg">0.0</div><div class="stat-label">Avg Rating</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card"><div class="stat-value" style="color:#22c55e" id="statFive">0</div><div class="stat-label">5-Star</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card"><div class="stat-value" style="color:#e05252" id="statOne">0</div><div class="stat-label">1-Star</div></div>
+            </div>
+        </div>
+        <!-- Rating distribution bars -->
+        <div class="card p-3" id="distBars" style="display:none">
+            <div id="distContainer"></div>
+        </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar mb-4 d-flex flex-wrap gap-2 align-items-center">
+        <select id="filterType">
+            <option value="">All Types</option>
+            <option value="MOVIE">Movies</option>
+            <option value="SERIES">Series</option>
+        </select>
+        <input type="number" id="filterMin" placeholder="Min ★" min="1" max="5" style="width:90px">
+        <input type="number" id="filterMax" placeholder="Max ★" min="1" max="5" style="width:90px">
+        <button class="btn-amber" onclick="applyFilters()">Filter</button>
+        <button class="btn-ghost" onclick="clearFilters()">Clear</button>
+    </div>
+
+    <!-- Review list -->
+    <div id="reviewList"></div>
+</div>
+
+<div id="toast"></div>
+
+<div th:replace="~{layout/base :: scripts}"></div>
+<script>
+(function () {
+    const token = localStorage.getItem('bb_token') || sessionStorage.getItem('bb_token');
+    if (!token) { window.location.href = '/login'; return; }
+
+    function authHeaders() {
+        return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    }
+
+    function showToast(msg, isError) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = isError ? 'error' : '';
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function stars(rating) {
+        let s = '';
+        for (let i = 1; i <= 5; i++) {
+            s += i <= rating
+                ? '<span class="star-display">★</span>'
+                : '<span class="star-empty">★</span>';
+        }
+        return s;
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    function loadStats() {
+        fetch('/api/reviews/stats', { headers: authHeaders() })
+            .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+            .then(data => {
+                if (!data) return;
+                document.getElementById('statTotal').textContent = data.totalReviews;
+                document.getElementById('statAvg').textContent   = data.averageRating.toFixed(1);
+                document.getElementById('statFive').textContent  = data.fiveStarCount;
+                document.getElementById('statOne').textContent   = data.oneStarCount;
+                document.getElementById('statsSection').style.display = '';
+
+                if (data.totalReviews > 0) {
+                    const bars = [
+                        [5, data.fiveStarCount],
+                        [4, data.fourStarCount],
+                        [3, data.threeStarCount],
+                        [2, data.twoStarCount],
+                        [1, data.oneStarCount],
+                    ];
+                    const max = Math.max(...bars.map(b => b[1]), 1);
+                    const container = document.getElementById('distContainer');
+                    container.innerHTML = bars.map(([star, count]) => `
+                        <div class="rating-bar-wrap mb-2">
+                            <span style="color:var(--amber);width:24px;text-align:right">${star}★</span>
+                            <div class="rating-bar-bg">
+                                <div class="rating-bar-fill" style="width:${Math.round((count/max)*100)}%"></div>
+                            </div>
+                            <span style="color:var(--text-muted);width:24px">${count}</span>
+                        </div>`).join('');
+                    document.getElementById('distBars').style.display = '';
+                }
+            })
+            .catch(() => {});
+    }
+
+    // ── Reviews ───────────────────────────────────────────────────────────────
+    function loadReviews(type, minRating, maxRating) {
+        const params = new URLSearchParams();
+        if (type)      params.set('type', type);
+        if (minRating) params.set('minRating', minRating);
+        if (maxRating) params.set('maxRating', maxRating);
+
+        const url = '/api/reviews/my' + (params.toString() ? '?' + params.toString() : '');
+
+        fetch(url, { headers: authHeaders() })
+            .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
+            .then(data => {
+                if (!data) return;
+                renderReviews(data);
+            })
+            .catch(() => showToast('Failed to load reviews', true));
+    }
+
+    function renderReviews(reviews) {
+        const list = document.getElementById('reviewList');
+        if (!reviews.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">🎬</div>
+                    <h5 style="color:var(--text-main)">No reviews yet</h5>
+                    <p style="margin-top:0.5rem">Browse content and share your thoughts.</p>
+                    <a href="/catalog" class="btn-amber d-inline-block mt-3" style="text-decoration:none;border-radius:7px;padding:0.5rem 1.2rem">Browse Catalog</a>
+                </div>`;
+            return;
+        }
+
+        list.innerHTML = reviews.map(r => {
+            const poster = r.contentPosterUrl
+                ? `<img src="${escHtml(r.contentPosterUrl)}" class="poster-thumb" alt="">`
+                : `<div class="poster-thumb-placeholder">🎬</div>`;
+            const title  = r.contentTitle || ('TMDB #' + r.tmdbId);
+            const year   = r.contentReleaseYear ? ` <span style="color:var(--text-muted)">${r.contentReleaseYear}</span>` : '';
+            const text   = r.reviewText ? `<p style="color:var(--text-muted);font-size:0.9rem;margin:0.6rem 0 0">${escHtml(r.reviewText)}</p>` : '';
+            const date   = new Date(r.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+
+            return `
+            <div class="review-card mb-3" id="rc-${r.tmdbId}">
+                <div class="d-flex gap-3">
+                    ${poster}
+                    <div style="flex:1;min-width:0">
+                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                            <div>
+                                <a href="/catalog/${r.tmdbId}?type=${r.contentType.toLowerCase()}"
+                                   style="color:var(--text-main);font-weight:600;text-decoration:none;font-size:1rem">${escHtml(title)}</a>
+                                ${year}
+                                <span class="badge-type ms-1">${r.contentType}</span>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn-ghost" style="font-size:0.8rem" onclick="toggleEdit(${r.tmdbId}, ${r.rating}, ${JSON.stringify(r.reviewText || '')})">Edit</button>
+                                <button class="btn-danger-ghost" onclick="deleteReview(${r.tmdbId})">Delete</button>
+                            </div>
+                        </div>
+                        <div class="mt-1">${stars(r.rating)}</div>
+                        ${text}
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem">${date}</div>
+                    </div>
+                </div>
+                <!-- Inline edit form -->
+                <div class="edit-form" id="ef-${r.tmdbId}">
+                    <div class="mb-2">
+                        <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:0.3rem">Rating</label>
+                        <div class="star-selector" id="ss-${r.tmdbId}" data-val="${r.rating}">
+                            <span onclick="setStar(${r.tmdbId},1)">★</span>
+                            <span onclick="setStar(${r.tmdbId},2)">★</span>
+                            <span onclick="setStar(${r.tmdbId},3)">★</span>
+                            <span onclick="setStar(${r.tmdbId},4)">★</span>
+                            <span onclick="setStar(${r.tmdbId},5)">★</span>
+                        </div>
+                    </div>
+                    <textarea class="edit-textarea" id="et-${r.tmdbId}" placeholder="Your review (optional)">${escHtml(r.reviewText || '')}</textarea>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn-amber" onclick="saveEdit(${r.tmdbId})">Save</button>
+                        <button class="btn-ghost" onclick="toggleEdit(${r.tmdbId})">Cancel</button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Initialise star selectors
+        reviews.forEach(r => renderStars(r.tmdbId, r.rating));
+    }
+
+    // ── Inline edit ───────────────────────────────────────────────────────────
+    window.toggleEdit = function(tmdbId, rating, text) {
+        const ef = document.getElementById('ef-' + tmdbId);
+        const open = ef.style.display === 'block';
+        ef.style.display = open ? 'none' : 'block';
+        if (!open && rating !== undefined) {
+            setStar(tmdbId, rating);
+            document.getElementById('et-' + tmdbId).value = text || '';
+        }
+    };
+
+    window.setStar = function(tmdbId, val) {
+        const ss = document.getElementById('ss-' + tmdbId);
+        if (!ss) return;
+        ss.dataset.val = val;
+        renderStars(tmdbId, val);
+    };
+
+    function renderStars(tmdbId, val) {
+        const ss = document.getElementById('ss-' + tmdbId);
+        if (!ss) return;
+        [...ss.children].forEach((s, i) => {
+            s.classList.toggle('active', i < val);
+        });
+    }
+
+    window.saveEdit = function(tmdbId) {
+        const ss     = document.getElementById('ss-' + tmdbId);
+        const rating = parseInt(ss.dataset.val, 10);
+        const text   = document.getElementById('et-' + tmdbId).value.trim();
+
+        fetch('/api/reviews/' + tmdbId, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ rating, reviewText: text || null })
+        })
+        .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(data => {
+            if (!data) return;
+            showToast('Review updated ✓');
+            loadReviews(
+                document.getElementById('filterType').value || null,
+                document.getElementById('filterMin').value  || null,
+                document.getElementById('filterMax').value  || null
+            );
+            loadStats();
+        })
+        .catch(status => showToast(status === 400 ? 'Invalid input' : 'Failed to update review', true));
+    };
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+    window.deleteReview = function(tmdbId) {
+        if (!confirm('Delete this review? This cannot be undone.')) return;
+        fetch('/api/reviews/' + tmdbId, { method: 'DELETE', headers: authHeaders() })
+            .then(r => { if (r.status === 401) { window.location.href = '/login'; return; } if (r.ok || r.status === 204) { showToast('Review deleted'); loadReviews(); loadStats(); } else { showToast('Failed to delete review', true); } })
+            .catch(() => showToast('Network error', true));
+    };
+
+    // ── Filters ───────────────────────────────────────────────────────────────
+    window.applyFilters = function() {
+        const type = document.getElementById('filterType').value || null;
+        const min  = document.getElementById('filterMin').value  || null;
+        const max  = document.getElementById('filterMax').value  || null;
+        loadReviews(type, min, max);
+    };
+
+    window.clearFilters = function() {
+        document.getElementById('filterType').value = '';
+        document.getElementById('filterMin').value  = '';
+        document.getElementById('filterMax').value  = '';
+        loadReviews();
+    };
+
+    // ── Util ──────────────────────────────────────────────────────────────────
+    function escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    loadStats();
+    loadReviews();
+})();
+</script>
+</body>
+</html>
