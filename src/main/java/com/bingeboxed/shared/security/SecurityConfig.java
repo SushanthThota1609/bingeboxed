@@ -43,6 +43,7 @@ public class SecurityConfig {
                         // These pages should be accessible to authenticated users via session
                         // But they don't require token in header - the page will load and JS will make API calls
                         .requestMatchers("/reviews", "/profile", "/profile/**", "/watchlist", "/watchlist/**", "/social").permitAll()
+                        .requestMatchers("/api/profiles/me").authenticated()
                         // API endpoints require authentication
                         .requestMatchers("/api/reviews/my", "/api/reviews/my/**", "/api/reviews/stats", "/api/reviews/contains/**").authenticated()
                         .requestMatchers("/api/reviews/*").authenticated()

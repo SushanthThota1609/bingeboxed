@@ -6,44 +6,101 @@
 </head>
 <body>
 <section class="container py-4">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <div class="display-1 mb-3">👤</div>
-                    <h4 id="userEmail" class="card-title">Loading...</h4>
-                    <p class="text-muted">Member since <span id="memberSince">-</span></p>
-                </div>
-            </div>
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Account Information</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Email</label>
-                        <p id="profileEmail" class="form-control-plaintext">-</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Account Created</label>
-                        <p id="profileCreatedAt" class="form-control-plaintext">-</p>
+        <p class="mt-2">Loading profile...</p>
+    </div>
+    
+    <div id="authCheck" class="alert alert-warning" style="display: none;">
+        <h4 class="alert-heading">Authentication Required</h4>
+        <p>Please <a href="/login" class="alert-link">login</a> to view your profile.</p>
+    </div>
+    
+    <div id="profileContent" style="display: none;">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="display-1 mb-3">👤</div>
+                        <h4 id="userEmail" class="card-title">Loading...</h4>
+                        <p class="text-muted">Member since <span id="memberSince">-</span></p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Reviews Section -->
-            <div class="card mt-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">My Recent Reviews</h5>
-                    <a href="/reviews" class="btn btn-sm btn-outline-primary">View All</a>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Account Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            <p id="profileEmail" class="form-control-plaintext">-</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Display Name</label>
+                            <p id="displayName" class="form-control-plaintext">-</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Bio</label>
+                            <p id="bio" class="form-control-plaintext">-</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Account Created</label>
+                            <p id="profileCreatedAt" class="form-control-plaintext">-</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div id="profileReviewsList">
-                        <div class="text-center py-3">
+                
+                <!-- Review Stats Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Your Review Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statsLoading" class="text-center py-3">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                            <p class="mt-2">Loading your reviews...</p>
+                            <span class="ms-2">Loading stats...</span>
+                        </div>
+                        <div id="statsContent" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-md-6 mb-3">
+                                    <h3 id="totalReviews">0</h3>
+                                    <p class="text-muted">Total Reviews</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h3 id="avgRating">0.0</h3>
+                                    <p class="text-muted">Average Rating</p>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="rating-distribution">
+                                <div class="mb-2">5 Stars: <span id="fiveStarCount">0</span></div>
+                                <div class="mb-2">4 Stars: <span id="fourStarCount">0</span></div>
+                                <div class="mb-2">3 Stars: <span id="threeStarCount">0</span></div>
+                                <div class="mb-2">2 Stars: <span id="twoStarCount">0</span></div>
+                                <div class="mb-2">1 Star: <span id="oneStarCount">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Reviews Section -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Reviews</h5>
+                        <a href="/reviews" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviewsLoading" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <p class="mt-2">Loading reviews...</p>
+                        </div>
+                        <div id="reviewsList"></div>
+                        <div id="emptyReviews" class="text-center py-3" style="display: none;">
+                            <p class="text-muted">No reviews yet. <a href="/catalog">Browse catalog</a> to write your first review!</p>
                         </div>
                     </div>
                 </div>
@@ -52,90 +109,183 @@
     </div>
     
     <script>
+        // Get token from localStorage
         const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
         
+        console.log('Profile page - Token exists:', !!token);
+        
         if (!token) {
-            window.location.href = '/login';
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('authCheck').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            loadProfile();
+            loadReviewStats();
+            loadRecentReviews();
         }
         
         async function loadProfile() {
             try {
-                const response = await fetch('/api/profile/me', {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                console.log('Fetching profile from /api/profiles/me...');
+                const response = await fetch('/api/profiles/me', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
+                console.log('Profile response status:', response.status);
+                
                 if (response.status === 401) {
+                    console.error('Unauthorized - clearing token');
+                    localStorage.removeItem('bb_token');
+                    localStorage.removeItem('token');
                     window.location.href = '/login';
                     return;
                 }
                 
                 if (response.ok) {
                     const profile = await response.json();
-                    document.getElementById('userEmail').textContent = profile.email;
-                    document.getElementById('profileEmail').textContent = profile.email;
-                    document.getElementById('memberSince').textContent = new Date(profile.createdAt).toLocaleDateString();
-                    document.getElementById('profileCreatedAt').textContent = new Date(profile.createdAt).toLocaleDateString();
+                    console.log('Profile data:', profile);
+                    
+                    document.getElementById('userEmail').textContent = profile.email || 'N/A';
+                    document.getElementById('profileEmail').textContent = profile.email || 'N/A';
+                    document.getElementById('displayName').textContent = profile.displayName || 'Not set';
+                    document.getElementById('bio').textContent = profile.bio || 'No bio yet';
+                    
+                    if (profile.createdAt) {
+                        const date = new Date(profile.createdAt);
+                        document.getElementById('memberSince').textContent = date.toLocaleDateString();
+                        document.getElementById('profileCreatedAt').textContent = date.toLocaleDateString();
+                    }
+                    
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('profileContent').style.display = 'block';
+                } else {
+                    console.error('Failed to load profile:', response.status);
+                    const error = await response.text();
+                    console.error('Error body:', error);
+                    document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">Failed to load profile. Please try again.</div>';
                 }
             } catch (error) {
                 console.error('Error loading profile:', error);
+                document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">Network error. Please try again.</div>';
             }
         }
         
-        async function loadProfileReviews() {
-            if (!token) return;
-            
+        async function loadReviewStats() {
             try {
-                const response = await fetch('/api/reviews/my', {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                console.log('Fetching review stats...');
+                const response = await fetch('/api/reviews/stats', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
                 });
+                
+                if (response.status === 401) {
+                    console.log('Not authenticated for stats');
+                    return;
+                }
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    console.log('Stats data:', stats);
+                    
+                    document.getElementById('totalReviews').textContent = stats.totalReviews;
+                    document.getElementById('avgRating').textContent = stats.averageRating.toFixed(1);
+                    document.getElementById('fiveStarCount').textContent = stats.fiveStarCount;
+                    document.getElementById('fourStarCount').textContent = stats.fourStarCount;
+                    document.getElementById('threeStarCount').textContent = stats.threeStarCount;
+                    document.getElementById('twoStarCount').textContent = stats.twoStarCount;
+                    document.getElementById('oneStarCount').textContent = stats.oneStarCount;
+                    
+                    document.getElementById('statsLoading').style.display = 'none';
+                    document.getElementById('statsContent').style.display = 'block';
+                } else {
+                    console.log('Stats response not OK:', response.status);
+                    document.getElementById('statsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('statsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
+            }
+        }
+        
+        async function loadRecentReviews() {
+            try {
+                console.log('Fetching recent reviews...');
+                const response = await fetch('/api/reviews/my', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.status === 401) {
+                    console.log('Not authenticated for reviews');
+                    return;
+                }
                 
                 if (response.ok) {
                     const reviews = await response.json();
-                    const container = document.getElementById('profileReviewsList');
-                    
-                    if (!reviews || reviews.length === 0) {
-                        container.innerHTML = '<p class="text-muted text-center">No reviews yet. <a href="/catalog">Browse catalog</a> to write your first review!</p>';
-                        return;
-                    }
-                    
-                    const recentReviews = reviews.slice(0, 5);
-                    
-                    container.innerHTML = recentReviews.map(review => `
-                        <div class="border-bottom pb-3 mb-3">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <a href="/catalog/${review.tmdbId}?type=${review.contentType === 'MOVIE' ? 'movie' : 'series'}" class="fw-bold text-decoration-none h6">
-                                        ${escapeHtml(review.content?.title || 'Unknown Title')}
-                                    </a>
-                                    <span class="badge ${review.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} ms-2">${review.contentType}</span>
-                                    <div class="text-warning mt-1">
-                                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
-                                        <span class="text-muted ms-2 small">${review.rating}/5</span>
-                                    </div>
-                                    ${review.reviewText ? `<p class="text-muted small mt-2 mb-1">${escapeHtml(review.reviewText.substring(0, 150))}${review.reviewText.length > 150 ? '...' : ''}</p>` : ''}
-                                    <small class="text-muted">Reviewed on ${new Date(review.createdAt).toLocaleDateString()}</small>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                } else if (response.status === 401) {
-                    window.location.href = '/login';
+                    console.log(`Loaded ${reviews.length} reviews`);
+                    displayRecentReviews(reviews);
+                } else {
+                    console.log('Reviews response not OK:', response.status);
+                    document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
                 }
             } catch (error) {
-                console.error('Error loading profile reviews:', error);
-                document.getElementById('profileReviewsList').innerHTML = '<p class="text-muted text-center">Unable to load reviews</p>';
+                console.error('Error loading reviews:', error);
+                document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">Unable to load reviews</p>';
             }
         }
         
-        function escapeHtml(str) {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+        function displayRecentReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            const loading = document.getElementById('reviewsLoading');
+            const emptyReviews = document.getElementById('emptyReviews');
+            
+            loading.style.display = 'none';
+            
+            if (!reviews || reviews.length === 0) {
+                emptyReviews.style.display = 'block';
+                return;
+            }
+            
+            emptyReviews.style.display = 'none';
+            
+            // Show only last 3 reviews
+            const recentReviews = reviews.slice(0, 3);
+            
+            container.innerHTML = recentReviews.map(review => `
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <a href="/catalog/${review.tmdbId}?type=${review.contentType === 'MOVIE' ? 'movie' : 'series'}" class="fw-bold text-decoration-none">
+                                ${escapeHtml(review.content?.title || 'Unknown Title')}
+                            </a>
+                            <span class="badge ${review.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} ms-2">${review.contentType}</span>
+                            <div class="text-warning mt-1">
+                                ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                                <span class="text-muted ms-2 small">${review.rating}/5</span>
+                            </div>
+                            ${review.reviewText ? `<p class="text-muted small mt-2 mb-1">${escapeHtml(review.reviewText.substring(0, 150))}${review.reviewText.length > 150 ? '...' : ''}</p>` : ''}
+                            <small class="text-muted">${new Date(review.createdAt).toLocaleDateString()}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
         
-        loadProfile();
-        loadProfileReviews();
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </section>
 </body>
