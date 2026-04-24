@@ -31,36 +31,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
+    // src/main/java/com/bingeboxed/shared/security/JwtAuthenticationFilter.java
+// Update the shouldNotFilter method:
+
+@Override
+protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    // Skip filter for these paths - they don't need JWT authentication
+    return path.equals("/login") || 
+           path.equals("/register") ||
+           path.equals("/profile") ||
+           path.startsWith("/profile/") ||
+           path.equals("/catalog") ||
+           path.startsWith("/catalog/") ||
+           path.equals("/reviews") ||
+           path.equals("/watchlist") ||
+           path.startsWith("/watchlist/") ||  // Add this line - allows /watchlist/user/{id}
+           path.equals("/social") ||
+           path.startsWith("/users/") ||
+           path.startsWith("/api/auth/") ||
+           path.startsWith("/api/profiles/public/") ||
+           path.startsWith("/api/catalog/") ||
+           path.startsWith("/api/watchlist/user/") ||
+           path.startsWith("/api/reviews/content/") ||
+           path.startsWith("/api/reviews/user/") ||
+           path.contains("/rating");
+}
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        
-        // Public paths that don't need authentication at all (both page and API)
-        if (path.startsWith("/api/auth") || 
-            path.startsWith("/api/profiles/public") ||
-            path.startsWith("/api/catalog") ||
-            path.startsWith("/api/reviews/content") ||
-            path.startsWith("/api/reviews/user") ||
-            path.endsWith("/rating") ||
-            path.equals("/login") || 
-            path.equals("/register") ||
-            path.equals("/catalog") ||
-            path.startsWith("/catalog/") ||
-            // Allow HTML pages to load without token
-            path.equals("/") ||
-            path.equals("/reviews") ||
-            path.equals("/profile") ||
-            path.equals("/watchlist") ||
-            path.equals("/social")) {
+        // Skip filter for public paths
+        if (shouldNotFilter(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Only require token for API endpoints
         final String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -89,6 +98,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    logger.debug("Authenticated user: {}", email);
                 }
             }
         } catch (Exception e) {

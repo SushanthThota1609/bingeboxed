@@ -13,9 +13,10 @@
         <p class="mt-2">Loading profile...</p>
     </div>
     
-    <div id="authCheck" class="alert alert-warning" style="display: none;">
-        <h4 class="alert-heading">Authentication Required</h4>
-        <p>Please <a href="/login" class="alert-link">login</a> to view your profile.</p>
+    <div id="errorState" class="alert alert-danger text-center" style="display: none;">
+        <h4>Unable to load profile</h4>
+        <p>Please try logging in again.</p>
+        <a href="/login" class="btn btn-primary">Go to Login</a>
     </div>
     
     <div id="profileContent" style="display: none;">
@@ -50,6 +51,24 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Account Created</label>
                             <p id="profileCreatedAt" class="form-control-plaintext">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Friends Section -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">My Friends</h5>
+                        <a href="/social" class="btn btn-sm btn-outline-primary">Find More</a>
+                    </div>
+                    <div class="card-body">
+                        <div id="friendsLoading" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <p class="mt-2">Loading friends...</p>
+                        </div>
+                        <div id="friendsList"></div>
+                        <div id="emptyFriends" class="text-center py-3" style="display: none;">
+                            <p class="text-muted">No friends yet. <a href="/social">Find friends</a> to connect!</p>
                         </div>
                     </div>
                 </div>
@@ -109,37 +128,44 @@
     </div>
     
     <script>
-        // Get token from localStorage
-        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        // Helper function to get token
+        function getToken() {
+            return localStorage.getItem('bb_token') || localStorage.getItem('token');
+        }
+        
+        const token = getToken();
         
         console.log('Profile page - Token exists:', !!token);
         
         if (!token) {
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('authCheck').style.display = 'block';
-            setTimeout(() => {
-                window.location.href = '/login';
-            }, 2000);
+            console.log('No token found, redirecting to login');
+            window.location.href = '/login';
         } else {
             loadProfile();
+            loadFriends();
             loadReviewStats();
             loadRecentReviews();
         }
         
+        function getAuthHeaders() {
+            const currentToken = getToken();
+            return {
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            };
+        }
+        
         async function loadProfile() {
             try {
-                console.log('Fetching profile from /api/profiles/me...');
+                console.log('Fetching profile...');
                 const response = await fetch('/api/profiles/me', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: getAuthHeaders()
                 });
                 
                 console.log('Profile response status:', response.status);
                 
                 if (response.status === 401) {
-                    console.error('Unauthorized - clearing token');
+                    console.log('Unauthorized, clearing token and redirecting');
                     localStorage.removeItem('bb_token');
                     localStorage.removeItem('token');
                     window.location.href = '/login';
@@ -148,7 +174,7 @@
                 
                 if (response.ok) {
                     const profile = await response.json();
-                    console.log('Profile data:', profile);
+                    console.log('Profile loaded:', profile);
                     
                     document.getElementById('userEmail').textContent = profile.email || 'N/A';
                     document.getElementById('profileEmail').textContent = profile.email || 'N/A';
@@ -165,34 +191,87 @@
                     document.getElementById('profileContent').style.display = 'block';
                 } else {
                     console.error('Failed to load profile:', response.status);
-                    const error = await response.text();
-                    console.error('Error body:', error);
-                    document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">Failed to load profile. Please try again.</div>';
+                    showError();
                 }
             } catch (error) {
                 console.error('Error loading profile:', error);
-                document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">Network error. Please try again.</div>';
+                showError();
             }
         }
         
-        async function loadReviewStats() {
+        function showError() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+        }
+        
+        async function loadFriends() {
             try {
-                console.log('Fetching review stats...');
-                const response = await fetch('/api/reviews/stats', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    }
+                const response = await fetch('/api/friends', {
+                    headers: getAuthHeaders()
                 });
                 
                 if (response.status === 401) {
-                    console.log('Not authenticated for stats');
                     return;
                 }
                 
                 if (response.ok) {
+                    const friends = await response.json();
+                    displayFriends(friends);
+                } else {
+                    document.getElementById('friendsLoading').style.display = 'none';
+                    document.getElementById('emptyFriends').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading friends:', error);
+                document.getElementById('friendsLoading').style.display = 'none';
+                document.getElementById('emptyFriends').style.display = 'block';
+            }
+        }
+        
+        function displayFriends(friends) {
+            const container = document.getElementById('friendsList');
+            const loading = document.getElementById('friendsLoading');
+            const emptyFriends = document.getElementById('emptyFriends');
+            
+            loading.style.display = 'none';
+            
+            if (!friends || friends.length === 0) {
+                emptyFriends.style.display = 'block';
+                return;
+            }
+            
+            emptyFriends.style.display = 'none';
+            
+            let html = '<div class="row">';
+            friends.slice(0, 6).forEach(friend => {
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">${escapeHtml(friend.displayName || friend.username || 'User')}</h5>
+                                <p class="card-text text-muted small">${escapeHtml(friend.username || '')}</p>
+                                <button onclick="viewFriendProfile(${friend.id})" class="btn btn-outline-primary btn-sm w-100">View Profile</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        function viewFriendProfile(userId) {
+            window.location.href = `/users/${userId}/profile`;
+        }
+        
+        async function loadReviewStats() {
+            try {
+                const response = await fetch('/api/reviews/stats', {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
                     const stats = await response.json();
-                    console.log('Stats data:', stats);
                     
                     document.getElementById('totalReviews').textContent = stats.totalReviews;
                     document.getElementById('avgRating').textContent = stats.averageRating.toFixed(1);
@@ -205,7 +284,6 @@
                     document.getElementById('statsLoading').style.display = 'none';
                     document.getElementById('statsContent').style.display = 'block';
                 } else {
-                    console.log('Stats response not OK:', response.status);
                     document.getElementById('statsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
                 }
             } catch (error) {
@@ -216,30 +294,19 @@
         
         async function loadRecentReviews() {
             try {
-                console.log('Fetching recent reviews...');
                 const response = await fetch('/api/reviews/my', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: getAuthHeaders()
                 });
-                
-                if (response.status === 401) {
-                    console.log('Not authenticated for reviews');
-                    return;
-                }
                 
                 if (response.ok) {
                     const reviews = await response.json();
-                    console.log(`Loaded ${reviews.length} reviews`);
                     displayRecentReviews(reviews);
                 } else {
-                    console.log('Reviews response not OK:', response.status);
                     document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
                 }
             } catch (error) {
                 console.error('Error loading reviews:', error);
-                document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">Unable to load reviews</p>';
+                document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
             }
         }
         
@@ -257,8 +324,7 @@
             
             emptyReviews.style.display = 'none';
             
-            // Show only last 3 reviews
-            const recentReviews = reviews.slice(0, 3);
+            const recentReviews = reviews.slice(0, 5);
             
             container.innerHTML = recentReviews.map(review => `
                 <div class="border-bottom pb-3 mb-3">

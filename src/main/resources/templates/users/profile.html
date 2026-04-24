@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>User Profile | BingeBoxed</title>
+</head>
+<body>
+<section class="container py-4">
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading profile...</p>
+    </div>
+    
+    <div id="errorState" class="alert alert-danger text-center" style="display: none;">
+        <h4>User Not Found</h4>
+        <p>The requested user profile could not be found.</p>
+        <a href="/social" class="btn btn-primary mt-2">Back to Social</a>
+    </div>
+    
+    <div id="profileContent" style="display: none;">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="display-1 mb-3">👤</div>
+                        <h4 id="userDisplayName" class="card-title">Loading...</h4>
+                        <p id="userUsername" class="text-muted">Loading...</p>
+                        <div id="friendActions"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">About</h5>
+                    </div>
+                    <div class="card-body">
+                        <p id="userBio" class="card-text">No bio yet</p>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Reviews</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviewsList">
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm" role="status"></div>
+                                <p class="mt-2">Loading reviews...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const userId = pathParts[pathParts.length - 2]; // /users/{userId}/profile
+        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        
+        console.log('User ID from URL:', userId);
+        
+        async function loadProfile() {
+            try {
+                // This endpoint should be public
+                const response = await fetch(`/api/users/${userId}/profile`, {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    // Try without token
+                    const retryResponse = await fetch(`/api/users/${userId}/profile`);
+                    if (retryResponse.ok) {
+                        const profile = await retryResponse.json();
+                        displayProfile(profile);
+                        return;
+                    }
+                }
+                
+                if (response.ok) {
+                    const profile = await response.json();
+                    displayProfile(profile);
+                } else if (response.status === 404) {
+                    showError();
+                } else {
+                    throw new Error('Failed to load profile');
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showError();
+            }
+        }
+        
+        function showError() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+        }
+        
+        function displayProfile(profile) {
+            document.getElementById('userDisplayName').textContent = profile.displayName || profile.username || 'User';
+            document.getElementById('userUsername').textContent = profile.username || profile.email || '';
+            document.getElementById('userBio').textContent = profile.bio || 'No bio yet';
+            
+            const friendActions = document.getElementById('friendActions');
+            if (token && !profile.isFriend && !profile.isCurrentUser && profile.id !== parseInt(userId)) {
+                friendActions.innerHTML = `
+                    <button onclick="sendFriendRequest(${profile.id})" class="btn btn-primary mt-3">Add Friend</button>
+                `;
+            } else if (profile.isFriend) {
+                friendActions.innerHTML = `<span class="badge bg-success mt-3">Friend</span>`;
+            } else if (profile.isCurrentUser) {
+                friendActions.innerHTML = `<span class="badge bg-info mt-3">This is you</span>`;
+            }
+            
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('profileContent').style.display = 'block';
+            
+            loadUserReviews(profile.id);
+        }
+        
+        async function loadUserReviews(userId) {
+            try {
+                const response = await fetch(`/api/reviews/user/${userId}`);
+                if (response.ok) {
+                    const reviews = await response.json();
+                    displayReviews(reviews);
+                } else {
+                    document.getElementById('reviewsList').innerHTML = '<p class="text-muted text-center">No reviews yet</p>';
+                }
+            } catch (error) {
+                console.error('Error loading reviews:', error);
+                document.getElementById('reviewsList').innerHTML = '<p class="text-muted text-center">No reviews yet</p>';
+            }
+        }
+        
+        function displayReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            
+            if (!reviews || reviews.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No reviews yet</p>';
+                return;
+            }
+            
+            container.innerHTML = reviews.slice(0, 5).map(review => `
+                <div class="border-bottom pb-3 mb-3">
+                    <a href="/catalog/${review.tmdbId}?type=${review.contentType === 'MOVIE' ? 'movie' : 'series'}" class="fw-bold text-decoration-none">
+                        ${escapeHtml(review.content?.title || 'Unknown Title')}
+                    </a>
+                    <span class="badge ${review.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} ms-2">${review.contentType}</span>
+                    <div class="text-warning mt-1">
+                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                        <span class="text-muted ms-2">${review.rating}/5</span>
+                    </div>
+                    ${review.reviewText ? `<p class="text-muted small mt-2">${escapeHtml(review.reviewText.substring(0, 150))}</p>` : ''}
+                    <small class="text-muted">${new Date(review.createdAt).toLocaleDateString()}</small>
+                </div>
+            `).join('');
+        }
+        
+        async function sendFriendRequest(receiverId) {
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/friends/requests', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ receiverId: receiverId })
+                });
+                
+                if (response.ok) {
+                    alert('Friend request sent!');
+                    document.getElementById('friendActions').innerHTML = '<span class="badge bg-warning mt-3">Request Sent</span>';
+                } else if (response.status === 409) {
+                    alert('Friend request already sent or user is already your friend');
+                } else {
+                    alert('Failed to send request');
+                }
+            } catch (error) {
+                alert('Network error');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadProfile();
+    </script>
+</section>
+</body>
+</html>

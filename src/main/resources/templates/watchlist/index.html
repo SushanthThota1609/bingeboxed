@@ -84,23 +84,32 @@
 
         let currentEntries = [];
 
-        async function loadStats() {
-            try {
-                const response = await fetch('/api/watchlist/stats', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.status === 401) throw new Error('Unauthorized');
-                if (!response.ok) throw new Error('Stats fetch failed');
-                const stats = await response.json();
-                document.getElementById('statTotal').textContent = stats.total || 0;
-                document.getElementById('statWantToWatch').textContent = stats.wantToWatch || 0;
-                document.getElementById('statWatching').textContent = stats.watching || 0;
-                document.getElementById('statCompleted').textContent = stats.completed || 0;
-            } catch (err) {
-                console.error('Failed to load stats:', err);
-                if (err.message === 'Unauthorized') window.location.href = '/login';
+        // Update the loadStats function in watchlist/index.html
+async function loadStats() {
+    try {
+        const currentToken = localStorage.getItem('token') || localStorage.getItem('bb_token');
+        const response = await fetch('/api/watchlist/stats', {
+            headers: { 
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
             }
+        });
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('bb_token');
+            window.location.href = '/login';
+            return;
         }
+        if (!response.ok) throw new Error('Stats fetch failed');
+        const stats = await response.json();
+        document.getElementById('statTotal').textContent = stats.total || 0;
+        document.getElementById('statWantToWatch').textContent = stats.wantToWatch || 0;
+        document.getElementById('statWatching').textContent = stats.watching || 0;
+        document.getElementById('statCompleted').textContent = stats.completed || 0;
+    } catch (err) {
+        console.error('Failed to load stats:', err);
+    }
+}
 
         async function loadWatchlist() {
             const status = document.getElementById('statusFilter').value;

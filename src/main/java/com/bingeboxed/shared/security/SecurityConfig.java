@@ -34,19 +34,25 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints - no authentication required
-                        .requestMatchers("/", "/login", "/register", "/catalog", "/catalog/**").permitAll()
+                        // Public HTML pages - no authentication required
+                        .requestMatchers("/", "/login", "/register").permitAll()
+                        .requestMatchers("/catalog", "/catalog/**").permitAll()
+                        .requestMatchers("/profile", "/profile/**").permitAll()
+                        .requestMatchers("/reviews", "/watchlist", "/watchlist/**", "/social").permitAll()
+                        .requestMatchers("/users/**").permitAll()
+                        // Public API endpoints
                         .requestMatchers("/api/auth/**", "/api/profiles/public/**", "/api/catalog/**").permitAll()
-                        .requestMatchers("/api/watchlist/user/**", "/api/social/counts/**").permitAll()
+                        .requestMatchers("/api/watchlist/user/**").permitAll()
+                        .requestMatchers("/api/social/counts/**").permitAll()
                         .requestMatchers("/api/reviews/content/**", "/api/reviews/user/**").permitAll()
                         .requestMatchers("/api/reviews/*/rating").permitAll()
-                        // These pages should be accessible to authenticated users via session
-                        // But they don't require token in header - the page will load and JS will make API calls
-                        .requestMatchers("/reviews", "/profile", "/profile/**", "/watchlist", "/watchlist/**", "/social").permitAll()
+                        .requestMatchers("/api/users/*/profile", "/api/users/search").permitAll()
+                        // Protected API endpoints - require valid JWT
                         .requestMatchers("/api/profiles/me").authenticated()
-                        // API endpoints require authentication
                         .requestMatchers("/api/reviews/my", "/api/reviews/my/**", "/api/reviews/stats", "/api/reviews/contains/**").authenticated()
                         .requestMatchers("/api/reviews/*").authenticated()
+                        .requestMatchers("/api/friends/**").authenticated()
+                        .requestMatchers("/api/watchlist").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
@@ -60,9 +66,14 @@ public class SecurityConfig {
         return new AuthenticationEntryPoint() {
             @Override
             public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
-                response.setStatus(401);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                String acceptHeader = request.getHeader("Accept");
+                if (acceptHeader != null && acceptHeader.contains("text/html")) {
+                    response.sendRedirect("/login");
+                } else {
+                    response.setStatus(401);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                }
             }
         };
     }

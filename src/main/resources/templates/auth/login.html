@@ -1,4 +1,4 @@
-<!-- src/main/resources/templates/auth/login.html -->
+// src/main/resources/templates/auth/login.html
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
@@ -55,17 +55,27 @@
             });
             const data = await response.json();
             if (response.ok) {
+                const token = data.token;
+                
+                // Store token in both locations for compatibility
+                localStorage.setItem('token', token);
+                localStorage.setItem('bb_token', token);
+                
+                console.log('Login successful, token stored:', token.substring(0, 50) + '...');
+                
                 messageDiv.className = 'alert alert-success';
                 messageDiv.textContent = 'Login successful! Redirecting...';
                 messageDiv.classList.remove('d-none');
-                localStorage.setItem('bb_token', data.token);
-                setTimeout(() => { window.location.href = '/profile'; }, 1500);
+                
+                // Redirect to catalog page instead of profile
+                setTimeout(() => { window.location.href = '/catalog'; }, 1000);
             } else {
                 messageDiv.className = 'alert alert-danger';
-                messageDiv.textContent = data.message || 'Invalid credentials';
+                messageDiv.textContent = data.message || data.error || 'Invalid credentials';
                 messageDiv.classList.remove('d-none');
             }
         } catch (error) {
+            console.error('Login error:', error);
             messageDiv.className = 'alert alert-danger';
             messageDiv.textContent = 'An error occurred. Please try again.';
             messageDiv.classList.remove('d-none');

@@ -15,7 +15,7 @@
             </div>
             <div class="card-body">
                 <div class="input-group mb-3">
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search by username or display name...">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by username or email...">
                     <button id="searchBtn" class="btn btn-primary">Search</button>
                 </div>
                 <div id="searchResults"></div>
@@ -32,16 +32,6 @@
             </div>
         </div>
 
-        <!-- Outgoing Requests -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Pending Requests Sent</h5>
-            </div>
-            <div class="card-body" id="outgoingRequestsContainer">
-                <p class="text-muted">Loading...</p>
-            </div>
-        </div>
-
         <!-- Friends List -->
         <div class="card">
             <div class="card-header">
@@ -54,167 +44,208 @@
     </div>
 
     <script>
-        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
+        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        
         if (!token) {
             window.location.href = '/login';
         }
 
-        function fetchJson(url, options = {}) {
-            options.headers = options.headers || {};
-            options.headers['Authorization'] = 'Bearer ' + token;
-            options.headers['Content-Type'] = 'application/json';
-            return fetch(url, options).then(res => {
-                if (res.status === 401) {
-                    localStorage.removeItem('token');
+        function getAuthHeaders() {
+            const currentToken = localStorage.getItem('bb_token') || localStorage.getItem('token');
+            return {
+                'Authorization': 'Bearer ' + currentToken,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        async function fetchJson(url, options = {}) {
+            options.headers = getAuthHeaders();
+            try {
+                const response = await fetch(url, options);
+                
+                if (response.status === 401) {
                     localStorage.removeItem('bb_token');
+                    localStorage.removeItem('token');
                     window.location.href = '/login';
-                    return Promise.reject('Unauthorized');
+                    return null;
                 }
-                if (!res.ok) {
-                    return res.json().then(err => Promise.reject(err));
+                
+                if (!response.ok) {
+                    const error = await response.text();
+                    console.error('API Error:', error);
+                    return null;
                 }
-                return res.status === 204 ? null : res.json();
-            });
+                
+                return response.status === 204 ? null : await response.json();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                return null;
+            }
         }
 
-        function loadIncomingRequests() {
-            fetchJson('/api/friends/requests/incoming')
-                .then(requests => {
-                    const container = document.getElementById('incomingRequestsContainer');
-                    if (!requests || requests.length === 0) {
-                        container.innerHTML = '<p class="text-muted">No incoming friend requests.</p>';
-                        return;
-                    }
-                    let html = '<div class="list-group">';
-                    requests.forEach(req => {
-                        html += `
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${escapeHtml(req.senderDisplayName)}</strong> (${escapeHtml(req.senderUsername)})
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm btn-success me-2" onclick="acceptRequest(${req.id})">Accept</button>
-                                    <button class="btn btn-sm btn-danger" onclick="declineRequest(${req.id})">Decline</button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    container.innerHTML = html;
-                })
-                .catch(err => console.error('Failed to load incoming requests', err));
-        }
-
-        function loadOutgoingRequests() {
-            fetchJson('/api/friends/requests/outgoing')
-                .then(requests => {
-                    const container = document.getElementById('outgoingRequestsContainer');
-                    if (!requests || requests.length === 0) {
-                        container.innerHTML = '<p class="text-muted">No pending outgoing requests.</p>';
-                        return;
-                    }
-                    let html = '<div class="list-group">';
-                    requests.forEach(req => {
-                        html += `
-                            <div class="list-group-item">
-                                <strong>${escapeHtml(req.senderDisplayName)}</strong> (${escapeHtml(req.senderUsername)})
-                                <span class="badge bg-warning ms-2">Pending</span>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    container.innerHTML = html;
-                })
-                .catch(err => console.error('Failed to load outgoing requests', err));
-        }
-
-        function loadFriends() {
-            fetchJson('/api/friends')
-                .then(friends => {
-                    const container = document.getElementById('friendsContainer');
-                    if (!friends || friends.length === 0) {
-                        container.innerHTML = '<p class="text-muted">You have no friends yet.</p>';
-                        return;
-                    }
-                    let html = '<div class="row">';
-                    friends.forEach(friend => {
-                        html += `
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title">${escapeHtml(friend.displayName)}</h5>
-                                        <p class="card-text text-muted">${escapeHtml(friend.username)}</p>
-                                        <a href="/profile/public/${friend.id}" class="btn btn-outline-primary btn-sm">View Profile</a>
-                                        <a href="/profile/public/${friend.id}" class="btn btn-outline-secondary btn-sm">Watchlist</a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    container.innerHTML = html;
-                })
-                .catch(err => console.error('Failed to load friends', err));
-        }
-
-        function searchUsers() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) {
-                document.getElementById('searchResults').innerHTML = '<div class="alert alert-warning">Please enter a search term.</div>';
+        async function loadIncomingRequests() {
+            const container = document.getElementById('incomingRequestsContainer');
+            container.innerHTML = '<p class="text-muted">Loading...</p>';
+            
+            const requests = await fetchJson('/api/friends/requests/incoming');
+            
+            if (!requests || requests.length === 0) {
+                container.innerHTML = '<p class="text-muted">No incoming friend requests.</p>';
                 return;
             }
-            fetchJson(`/api/users/search?query=${encodeURIComponent(query)}`)
-                .then(users => {
-                    const container = document.getElementById('searchResults');
-                    if (!users || users.length === 0) {
-                        container.innerHTML = '<div class="alert alert-info">No users found.</div>';
-                        return;
-                    }
-                    let html = '<div class="list-group">';
-                    users.forEach(user => {
-                        html += `
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${escapeHtml(user.displayName)}</strong> (${escapeHtml(user.username)})
-                                </div>
-                                <button class="btn btn-sm btn-primary" onclick="sendFriendRequest(${user.id})">Add Friend</button>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    container.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('searchResults').innerHTML = '<div class="alert alert-danger">Search failed.</div>';
-                });
-        }
-
-        function sendFriendRequest(receiverId) {
-            fetchJson('/api/friends/requests', {
-                method: 'POST',
-                body: JSON.stringify({ receiverId: receiverId })
-            }).then(() => {
-                alert('Friend request sent!');
-                loadOutgoingRequests();
-            }).catch(err => {
-                alert(err.error || 'Failed to send request');
+            
+            let html = '<div class="list-group">';
+            requests.forEach(req => {
+                html += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${escapeHtml(req.senderDisplayName || 'User')}</strong>
+                            <br>
+                            <small class="text-muted">Sent: ${new Date(req.createdAt).toLocaleDateString()}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-success me-2" onclick="acceptRequest(${req.id})">Accept</button>
+                            <button class="btn btn-sm btn-danger" onclick="declineRequest(${req.id})">Decline</button>
+                        </div>
+                    </div>
+                `;
             });
+            html += '</div>';
+            container.innerHTML = html;
         }
 
-        function acceptRequest(requestId) {
-            fetchJson(`/api/friends/requests/${requestId}/accept`, { method: 'POST' })
-                .then(() => {
-                    loadIncomingRequests();
-                    loadFriends();
-                })
-                .catch(err => alert(err.error || 'Accept failed'));
+        async function loadFriends() {
+            const container = document.getElementById('friendsContainer');
+            container.innerHTML = '<p class="text-muted">Loading...</p>';
+            
+            const friends = await fetchJson('/api/friends');
+            
+            if (!friends || friends.length === 0) {
+                container.innerHTML = '<p class="text-muted">You have no friends yet. Search for users to add!</p>';
+                return;
+            }
+            
+            let html = '<div class="row">';
+            friends.forEach(friend => {
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">${escapeHtml(friend.displayName || friend.username || 'User')}</h5>
+                                <p class="card-text text-muted small">${escapeHtml(friend.username || '')}</p>
+                                <p class="card-text"><small>Friends since: ${new Date(friend.friendSince).toLocaleDateString()}</small></p>
+                                <div class="d-flex gap-2">
+                                    <button onclick="viewProfile(${friend.id})" class="btn btn-outline-primary btn-sm">View Profile</button>
+                                    <button onclick="viewWatchlist(${friend.id})" class="btn btn-outline-secondary btn-sm">Watchlist</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
         }
 
-        function declineRequest(requestId) {
-            fetchJson(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
-                .then(() => loadIncomingRequests())
-                .catch(err => alert(err.error || 'Decline failed'));
+        async function searchUsers() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+            
+            const container = document.getElementById('searchResults');
+            container.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> Searching...</div>';
+            
+            const users = await fetchJson(`/api/users/search?query=${encodeURIComponent(query)}`);
+            
+            if (!users || users.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No users found</div>';
+                return;
+            }
+            
+            let html = '<div class="list-group">';
+            users.forEach(user => {
+                html += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${escapeHtml(user.displayName || user.username || user.email)}</strong>
+                            <br>
+                            <small class="text-muted">${escapeHtml(user.email || '')}</small>
+                            ${user.isFriend ? '<span class="badge bg-success ms-2">Friend</span>' : ''}
+                            ${user.requestSent ? '<span class="badge bg-warning ms-2">Request Sent</span>' : ''}
+                        </div>
+                        ${!user.isFriend && !user.requestSent ? `
+                            <button class="btn btn-sm btn-primary" onclick="sendFriendRequest(${user.id})">Add Friend</button>
+                        ` : ''}
+                        ${user.isFriend ? `
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewProfile(${user.id})">View Profile</button>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function sendFriendRequest(receiverId) {
+            try {
+                const response = await fetch('/api/friends/requests', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ receiverId: receiverId })
+                });
+                
+                if (response.status === 201 || response.status === 200) {
+                    alert('Friend request sent!');
+                    searchUsers(); // Refresh search results
+                } else if (response.status === 409) {
+                    alert('Friend request already sent or user is already your friend');
+                } else {
+                    const error = await response.text();
+                    alert('Failed to send request: ' + error);
+                }
+            } catch (error) {
+                console.error('Error sending request:', error);
+                alert('Network error. Please try again.');
+            }
+        }
+
+        async function acceptRequest(requestId) {
+            const response = await fetch(`/api/friends/requests/${requestId}/accept`, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            
+            if (response.ok) {
+                alert('Friend request accepted!');
+                loadIncomingRequests();
+                loadFriends();
+            } else {
+                alert('Failed to accept request');
+            }
+        }
+
+        async function declineRequest(requestId) {
+            const response = await fetch(`/api/friends/requests/${requestId}/decline`, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            
+            if (response.ok) {
+                alert('Friend request declined');
+                loadIncomingRequests();
+            } else {
+                alert('Failed to decline request');
+            }
+        }
+
+        function viewProfile(userId) {
+            window.location.href = `/users/${userId}/profile`;
+        }
+
+        function viewWatchlist(userId) {
+            window.location.href = `/watchlist/user/${userId}`;
         }
 
         function escapeHtml(str) {
@@ -227,13 +258,14 @@
             });
         }
 
+        // Event listeners
         document.getElementById('searchBtn').addEventListener('click', searchUsers);
         document.getElementById('searchInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') searchUsers();
         });
 
+        // Load data
         loadIncomingRequests();
-        loadOutgoingRequests();
         loadFriends();
     </script>
 </th:block>

@@ -1,171 +1,192 @@
+// src/main/resources/templates/profiles/public.html
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
 <head>
-    <title>Public Profile - BingeBoxed</title>
+    <title>User Profile | BingeBoxed</title>
 </head>
 <body>
-<th:block th:fragment="section">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow-sm">
+<section class="container py-4">
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading profile...</p>
+    </div>
+    
+    <div id="profileContent" style="display: none;">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
                     <div class="card-body text-center">
-                        <div id="avatarContainer"></div>
-                        <h2 id="displayName"></h2>
-                        <p id="username" class="text-muted"></p>
-                        <div id="bioContainer"></div>
-                        <div id="friendStats" class="mt-2 text-muted small"></div>
-                        <div id="friendRequestButtonContainer" class="mt-3"></div>
+                        <div class="display-1 mb-3">👤</div>
+                        <h4 id="userDisplayName" class="card-title">Loading...</h4>
+                        <p id="userEmail" class="text-muted">Loading...</p>
                     </div>
                 </div>
-                <div class="card mt-4 shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">📺 Public Watchlist</h5>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">About</h5>
                     </div>
-                    <div class="card-body" id="watchlistContainer">
-                        <p class="text-muted">Loading...</p>
+                    <div class="card-body">
+                        <p id="userBio" class="card-text">No bio yet</p>
+                    </div>
+                </div>
+                
+                <!-- Review Stats Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Review Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statsLoading" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">Loading stats...</span>
+                        </div>
+                        <div id="statsContent" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-md-6 mb-3">
+                                    <h3 id="totalReviews">0</h3>
+                                    <p class="text-muted">Total Reviews</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h3 id="avgRating">0.0</h3>
+                                    <p class="text-muted">Average Rating</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Reviews Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Reviews</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reviewsLoading" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <p class="mt-2">Loading reviews...</p>
+                        </div>
+                        <div id="reviewsList"></div>
+                        <div id="emptyReviews" class="text-center py-3" style="display: none;">
+                            <p class="text-muted">No reviews yet.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    
     <script>
-        const userId = window.location.pathname.split('/').pop();
-        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
-        if (!token) {
-            window.location.href = '/login';
-        }
-
-        function fetchJson(url, options = {}) {
-            options.headers = options.headers || {};
-            if (token) options.headers['Authorization'] = 'Bearer ' + token;
-            options.headers['Content-Type'] = 'application/json';
-            return fetch(url, options).then(res => {
-                if (res.status === 401) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('bb_token');
-                    window.location.href = '/login';
-                    return Promise.reject('Unauthorized');
-                }
-                if (!res.ok) {
-                    return res.json().then(err => Promise.reject(err));
-                }
-                return res.json();
-            });
-        }
-
-        // Load user profile
-        fetchJson(`/api/users/${userId}/profile`)
-            .then(profile => {
-                document.getElementById('displayName').textContent = profile.displayName || profile.username;
-                document.getElementById('username').textContent = '@' + profile.username;
-                document.getElementById('friendStats').textContent = `${profile.followerCount} followers · ${profile.followingCount} following`;
-                if (profile.avatarUrl) {
-                    document.getElementById('avatarContainer').innerHTML = `<img src="${profile.avatarUrl}" alt="Avatar" class="rounded-circle" width="100" height="100">`;
-                } else {
-                    document.getElementById('avatarContainer').innerHTML = '<div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center" style="width:100px;height:100px;font-size:3rem;">👤</div>';
-                }
-                const container = document.getElementById('friendRequestButtonContainer');
-                switch (profile.friendshipStatus) {
-                    case 'NONE':
-                        container.innerHTML = `<button class="btn btn-primary" onclick="sendFriendRequest(${profile.userId})">Add Friend</button>`;
-                        break;
-                    case 'PENDING_SENT':
-                        container.innerHTML = `<button class="btn btn-secondary" disabled>Request Sent</button>`;
-                        break;
-                    case 'PENDING_RECEIVED':
-                        container.innerHTML = `
-                            <button class="btn btn-success me-2" onclick="acceptRequest(${profile.userId})">Accept</button>
-                            <button class="btn btn-danger" onclick="declineRequest(${profile.userId})">Decline</button>
-                        `;
-                        break;
-                    case 'FRIENDS':
-                        container.innerHTML = `<button class="btn btn-success" disabled>Friends</button>`;
-                        break;
-                }
-            })
-            .catch(err => console.error('Error loading profile', err));
-
-        // Load watchlist using the API
-        fetchJson(`/api/watchlist/user/${userId}`)
-            .then(entries => {
-                const container = document.getElementById('watchlistContainer');
-                if (!entries || entries.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No watchlist entries yet.</p>';
-                    return;
-                }
-                let html = '<div class="list-group">';
-                entries.forEach(entry => {
-                    const meta = entry.contentMetadata || {};
-                    const title = meta.title || `Content ${entry.tmdbId}`;
-                    const poster = meta.posterUrl ? `<img src="${meta.posterUrl}" height="60" class="ms-2">` : '';
-                    html += `
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">${escapeHtml(title)}</h6>
-                                <small class="text-muted">Status: ${entry.status}</small>
-                                ${meta.releaseYear ? `<br><small>Year: ${meta.releaseYear}</small>` : ''}
-                            </div>
-                            ${poster}
-                        </div>
-                    `;
+        // Get user ID from URL path
+        const pathParts = window.location.pathname.split('/');
+        const userId = pathParts[pathParts.length - 1];
+        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        
+        console.log('Public profile - User ID:', userId);
+        
+        async function loadPublicProfile() {
+            try {
+                const response = await fetch(`/api/profiles/public/${userId}`, {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
                 });
-                html += '</div>';
-                container.innerHTML = html;
-            })
-            .catch(err => {
-                console.error('Error loading watchlist', err);
-                document.getElementById('watchlistContainer').innerHTML = '<p class="text-danger">Failed to load watchlist.</p>';
-            });
-
-        function sendFriendRequest(receiverId) {
-            fetchJson('/api/friends/requests', {
-                method: 'POST',
-                body: JSON.stringify({ receiverId: receiverId })
-            }).then(() => {
-                alert('Friend request sent!');
-                location.reload();
-            }).catch(err => alert(err.error || 'Failed'));
+                
+                if (response.ok) {
+                    const profile = await response.json();
+                    console.log('Profile data:', profile);
+                    
+                    document.getElementById('userDisplayName').textContent = profile.displayName || 'User';
+                    document.getElementById('userEmail').textContent = profile.email || 'No email';
+                    document.getElementById('userBio').textContent = profile.bio || 'No bio yet';
+                    
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('profileContent').style.display = 'block';
+                    
+                    // Load user's reviews
+                    loadUserReviews(userId);
+                } else {
+                    throw new Error('Failed to load profile');
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">User not found</div>';
+            }
         }
-
-        function acceptRequest(senderId) {
-            fetchJson('/api/friends/requests/incoming')
-                .then(requests => {
-                    const req = requests.find(r => r.senderId == senderId);
-                    if (req) {
-                        return fetchJson(`/api/friends/requests/${req.id}/accept`, { method: 'POST' });
+        
+        async function loadUserReviews(userId) {
+            try {
+                const response = await fetch(`/api/reviews/user/${userId}`);
+                
+                if (response.ok) {
+                    const reviews = await response.json();
+                    displayReviews(reviews);
+                    
+                    // Calculate stats from reviews
+                    if (reviews && reviews.length > 0) {
+                        const total = reviews.length;
+                        const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / total;
+                        document.getElementById('totalReviews').textContent = total;
+                        document.getElementById('avgRating').textContent = avg.toFixed(1);
+                        document.getElementById('statsLoading').style.display = 'none';
+                        document.getElementById('statsContent').style.display = 'block';
                     } else {
-                        throw new Error('No pending request found');
+                        document.getElementById('statsLoading').innerHTML = '<p class="text-muted">No reviews yet</p>';
                     }
-                })
-                .then(() => location.reload())
-                .catch(err => alert(err.error || 'Accept failed'));
+                }
+            } catch (error) {
+                console.error('Error loading user reviews:', error);
+                document.getElementById('reviewsLoading').innerHTML = '<p class="text-muted">Unable to load reviews</p>';
+            }
         }
-
-        function declineRequest(senderId) {
-            fetchJson('/api/friends/requests/incoming')
-                .then(requests => {
-                    const req = requests.find(r => r.senderId == senderId);
-                    if (req) {
-                        return fetchJson(`/api/friends/requests/${req.id}/decline`, { method: 'POST' });
-                    } else {
-                        throw new Error('No pending request found');
-                    }
-                })
-                .then(() => location.reload())
-                .catch(err => alert(err.error || 'Decline failed'));
+        
+        function displayReviews(reviews) {
+            const container = document.getElementById('reviewsList');
+            const loading = document.getElementById('reviewsLoading');
+            const emptyReviews = document.getElementById('emptyReviews');
+            
+            loading.style.display = 'none';
+            
+            if (!reviews || reviews.length === 0) {
+                emptyReviews.style.display = 'block';
+                return;
+            }
+            
+            emptyReviews.style.display = 'none';
+            
+            // Show only last 5 reviews
+            const recentReviews = reviews.slice(0, 5);
+            
+            container.innerHTML = recentReviews.map(review => `
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <a href="/catalog/${review.tmdbId}?type=${review.contentType === 'MOVIE' ? 'movie' : 'series'}" class="fw-bold text-decoration-none">
+                                ${escapeHtml(review.content?.title || 'Unknown Title')}
+                            </a>
+                            <span class="badge ${review.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} ms-2">${review.contentType}</span>
+                            <div class="text-warning mt-1">
+                                ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                                <span class="text-muted ms-2 small">${review.rating}/5</span>
+                            </div>
+                            ${review.reviewText ? `<p class="text-muted small mt-2 mb-1">${escapeHtml(review.reviewText.substring(0, 200))}${review.reviewText.length > 200 ? '...' : ''}</p>` : ''}
+                            <small class="text-muted">${new Date(review.createdAt).toLocaleDateString()}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
+        
+        loadPublicProfile();
     </script>
-</th:block>
+</section>
 </body>
 </html>

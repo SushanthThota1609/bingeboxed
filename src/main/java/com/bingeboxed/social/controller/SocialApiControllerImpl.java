@@ -52,13 +52,6 @@ public class SocialApiControllerImpl {
         return ResponseEntity.ok(results);
     }
 
-    @GetMapping("/users/{userId}/profile")
-    public ResponseEntity<PublicProfileResponse> getUserProfile(@PathVariable Long userId,
-                                                                HttpServletRequest request) {
-        Long currentUserId = getCurrentUserId(request);
-        PublicProfileResponse profile = socialService.getUserProfile(userId, currentUserId);
-        return ResponseEntity.ok(profile);
-    }
 
     @PostMapping("/friends/requests")
     public ResponseEntity<FriendRequestDto> sendFriendRequest(@RequestBody SendFriendRequestRequest body,
@@ -118,4 +111,17 @@ public class SocialApiControllerImpl {
         SocialCountsResponse counts = socialService.getSocialCounts(userId);
         return ResponseEntity.ok(counts);
     }
+
+    @GetMapping("/users/{userId}/profile")
+    public ResponseEntity<PublicProfileResponse> getUserProfile(@PathVariable Long userId,
+                                                            HttpServletRequest request) {
+    Long currentUserId = null;
+    try {
+        currentUserId = getCurrentUserId(request);
+    } catch (Exception e) {
+        // User is not authenticated, that's fine for public profile
+    }
+    PublicProfileResponse profile = socialService.getUserProfile(userId, currentUserId);
+    return ResponseEntity.ok(profile);
+}
 }

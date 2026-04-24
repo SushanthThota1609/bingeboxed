@@ -1,0 +1,125 @@
+// src/main/resources/templates/watchlist/public.html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>User Watchlist | BingeBoxed</title>
+</head>
+<body>
+<section class="container py-4">
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading watchlist...</p>
+    </div>
+    
+    <div id="watchlistContent" style="display: none;">
+        <h2 id="pageTitle" class="mb-4">Watchlist</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="watchlistGrid"></div>
+        <div id="emptyWatchlist" class="text-center py-5" style="display: none;">
+            <p class="lead">No items in watchlist</p>
+        </div>
+    </div>
+    
+    <script>
+        // Get user ID from URL path
+        const pathParts = window.location.pathname.split('/');
+        const userId = pathParts[pathParts.length - 1];
+        const token = localStorage.getItem('bb_token') || localStorage.getItem('token');
+        
+        console.log('Public watchlist - User ID:', userId);
+        
+        async function loadUserWatchlist() {
+            try {
+                // Try to get user info first
+                const userResponse = await fetch(`/api/profiles/public/${userId}`, {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                });
+                
+                if (userResponse.ok) {
+                    const user = await userResponse.json();
+                    document.getElementById('pageTitle').textContent = `${user.displayName || 'User'}'s Watchlist`;
+                }
+                
+                // Load watchlist items
+                const response = await fetch(`/api/watchlist/user/${userId}`, {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                });
+                
+                if (response.ok) {
+                    const watchlist = await response.json();
+                    displayWatchlist(watchlist);
+                } else {
+                    throw new Error('Failed to load watchlist');
+                }
+            } catch (error) {
+                console.error('Error loading watchlist:', error);
+                document.getElementById('loadingState').innerHTML = '<div class="alert alert-danger">Unable to load watchlist</div>';
+            }
+        }
+        
+        function displayWatchlist(watchlist) {
+            const container = document.getElementById('watchlistGrid');
+            const loading = document.getElementById('loadingState');
+            const emptyWatchlist = document.getElementById('emptyWatchlist');
+            
+            loading.style.display = 'none';
+            
+            if (!watchlist || watchlist.length === 0) {
+                emptyWatchlist.style.display = 'block';
+                document.getElementById('watchlistContent').style.display = 'block';
+                return;
+            }
+            
+            emptyWatchlist.style.display = 'none';
+            document.getElementById('watchlistContent').style.display = 'block';
+            
+            container.innerHTML = watchlist.map(item => `
+                <div class="col">
+                    <div class="card h-100">
+                        <img src="${item.contentMetadata?.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'}" class="card-img-top" alt="${escapeHtml(item.contentMetadata?.title || 'Unknown')}" style="height: 300px; object-fit: cover;">
+                        <div class="card-body">
+                            <h5 class="card-title">${escapeHtml(item.contentMetadata?.title || 'Unknown Title')}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">${item.contentMetadata?.releaseYear || 'N/A'} • ${item.contentType}</small>
+                            </p>
+                            <span class="badge status-badge" style="background-color: ${getStatusColor(item.status)}">${formatStatus(item.status)}</span>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="/catalog/${item.tmdbId}?type=${item.contentType === 'MOVIE' ? 'movie' : 'series'}" class="btn btn-primary btn-sm w-100">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function formatStatus(status) {
+            const map = {
+                'WANT_TO_WATCH': 'Want to Watch',
+                'WATCHING': 'Watching',
+                'COMPLETED': 'Completed'
+            };
+            return map[status] || status;
+        }
+        
+        function getStatusColor(status) {
+            switch (status) {
+                case 'WANT_TO_WATCH': return '#0d6efd';
+                case 'WATCHING': return '#ffc107';
+                case 'COMPLETED': return '#198754';
+                default: return '#6c757d';
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadUserWatchlist();
+    </script>
+</section>
+</body>
+</html>
