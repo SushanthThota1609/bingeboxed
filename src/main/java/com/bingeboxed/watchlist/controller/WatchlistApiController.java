@@ -99,6 +99,10 @@ public class WatchlistApiController {
     public ResponseEntity<List<WatchlistResponse>> getPublicWatchlist(@PathVariable Long userId,
                                                                       @RequestParam(required = false) String status,
                                                                       @RequestParam(required = false) String type) {
+        // Check if user exists
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found: " + userId);
+        }
         List<WatchlistResponse> entries = watchlistService.getPublicWatchlist(userId, status, type);
         return ResponseEntity.ok(entries);
     }
@@ -117,7 +121,6 @@ public class WatchlistApiController {
         boolean exists = watchlistService.existsByUserAndTmdbId(userId, tmdbId);
         String status = null;
         if (exists) {
-            // We need the status; could fetch entry but that's extra query. For simplicity, fetch entry.
             WatchlistResponse entry = watchlistService.getEntry(userId, tmdbId);
             status = entry.getStatus();
         }

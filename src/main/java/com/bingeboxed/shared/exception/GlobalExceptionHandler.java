@@ -50,6 +50,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", reason));
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException e) {
+        String msg = e.getMessage();
+        if (msg != null && (msg.contains("not found") || msg.contains("User not found"))) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", msg));
+        }
+        if (msg != null && (msg.contains("already pending") || msg.contains("Friend request already pending"))) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
+        }
+        if (msg != null && (msg.contains("Already friends"))) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
+        }
+        logger.error("Unexpected runtime exception", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Internal server error"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGenericException(Exception e) {
         logger.error("Unexpected error", e);

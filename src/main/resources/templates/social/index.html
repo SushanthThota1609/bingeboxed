@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>Social - BingeBoxed</title>
+</head>
+<body>
+<th:block th:fragment="section">
+    <div class="container py-4">
+        <h1 class="mb-4">Social Hub</h1>
+
+        <!-- User Search Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Find Friends</h5>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by username or display name...">
+                    <button id="searchBtn" class="btn btn-primary">Search</button>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+        </div>
+
+        <!-- Incoming Requests -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Friend Requests Received</h5>
+            </div>
+            <div class="card-body" id="incomingRequestsContainer">
+                <p class="text-muted">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Outgoing Requests -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Pending Requests Sent</h5>
+            </div>
+            <div class="card-body" id="outgoingRequestsContainer">
+                <p class="text-muted">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Friends List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">My Friends</h5>
+            </div>
+            <div class="card-body" id="friendsContainer">
+                <p class="text-muted">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        function fetchJson(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = 'Bearer ' + token;
+            options.headers['Content-Type'] = 'application/json';
+            return fetch(url, options).then(res => {
+                if (res.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('bb_token');
+                    window.location.href = '/login';
+                    return Promise.reject('Unauthorized');
+                }
+                if (!res.ok) {
+                    return res.json().then(err => Promise.reject(err));
+                }
+                return res.status === 204 ? null : res.json();
+            });
+        }
+
+        function loadIncomingRequests() {
+            fetchJson('/api/friends/requests/incoming')
+                .then(requests => {
+                    const container = document.getElementById('incomingRequestsContainer');
+                    if (!requests || requests.length === 0) {
+                        container.innerHTML = '<p class="text-muted">No incoming friend requests.</p>';
+                        return;
+                    }
+                    let html = '<div class="list-group">';
+                    requests.forEach(req => {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${escapeHtml(req.senderDisplayName)}</strong> (${escapeHtml(req.senderUsername)})
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-success me-2" onclick="acceptRequest(${req.id})">Accept</button>
+                                    <button class="btn btn-sm btn-danger" onclick="declineRequest(${req.id})">Decline</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(err => console.error('Failed to load incoming requests', err));
+        }
+
+        function loadOutgoingRequests() {
+            fetchJson('/api/friends/requests/outgoing')
+                .then(requests => {
+                    const container = document.getElementById('outgoingRequestsContainer');
+                    if (!requests || requests.length === 0) {
+                        container.innerHTML = '<p class="text-muted">No pending outgoing requests.</p>';
+                        return;
+                    }
+                    let html = '<div class="list-group">';
+                    requests.forEach(req => {
+                        html += `
+                            <div class="list-group-item">
+                                <strong>${escapeHtml(req.senderDisplayName)}</strong> (${escapeHtml(req.senderUsername)})
+                                <span class="badge bg-warning ms-2">Pending</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(err => console.error('Failed to load outgoing requests', err));
+        }
+
+        function loadFriends() {
+            fetchJson('/api/friends')
+                .then(friends => {
+                    const container = document.getElementById('friendsContainer');
+                    if (!friends || friends.length === 0) {
+                        container.innerHTML = '<p class="text-muted">You have no friends yet.</p>';
+                        return;
+                    }
+                    let html = '<div class="row">';
+                    friends.forEach(friend => {
+                        html += `
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${escapeHtml(friend.displayName)}</h5>
+                                        <p class="card-text text-muted">${escapeHtml(friend.username)}</p>
+                                        <a href="/profile/public/${friend.id}" class="btn btn-outline-primary btn-sm">View Profile</a>
+                                        <a href="/watchlist/user/${friend.id}" class="btn btn-outline-secondary btn-sm">Watchlist</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(err => console.error('Failed to load friends', err));
+        }
+
+        function searchUsers() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                document.getElementById('searchResults').innerHTML = '<div class="alert alert-warning">Please enter a search term.</div>';
+                return;
+            }
+            fetchJson(`/api/users/search?query=${encodeURIComponent(query)}`)
+                .then(users => {
+                    const container = document.getElementById('searchResults');
+                    if (!users || users.length === 0) {
+                        container.innerHTML = '<div class="alert alert-info">No users found.</div>';
+                        return;
+                    }
+                    let html = '<div class="list-group">';
+                    users.forEach(user => {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${escapeHtml(user.displayName)}</strong> (${escapeHtml(user.username)})
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="sendFriendRequest(${user.id})">Add Friend</button>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('searchResults').innerHTML = '<div class="alert alert-danger">Search failed.</div>';
+                });
+        }
+
+        function sendFriendRequest(receiverId) {
+            fetchJson('/api/friends/requests', {
+                method: 'POST',
+                body: JSON.stringify({ receiverId: receiverId })
+            }).then(() => {
+                alert('Friend request sent!');
+                loadOutgoingRequests();
+            }).catch(err => {
+                alert(err.error || 'Failed to send request');
+            });
+        }
+
+        function acceptRequest(requestId) {
+            fetchJson(`/api/friends/requests/${requestId}/accept`, { method: 'POST' })
+                .then(() => {
+                    loadIncomingRequests();
+                    loadFriends();
+                })
+                .catch(err => alert(err.error || 'Accept failed'));
+        }
+
+        function declineRequest(requestId) {
+            fetchJson(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
+                .then(() => loadIncomingRequests())
+                .catch(err => alert(err.error || 'Decline failed'));
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', searchUsers);
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchUsers();
+        });
+
+        loadIncomingRequests();
+        loadOutgoingRequests();
+        loadFriends();
+    </script>
+</th:block>
+</body>
+</html>

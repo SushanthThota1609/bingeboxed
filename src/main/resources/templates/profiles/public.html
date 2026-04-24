@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>Public Profile - BingeBoxed</title>
+</head>
+<body>
+<th:block th:fragment="section">
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <div id="avatarContainer"></div>
+                    <h2 id="displayName"></h2>
+                    <p id="username" class="text-muted"></p>
+                    <div id="bioContainer"></div>
+                    <div id="friendStats" class="mt-2 text-muted small"></div>
+                    <div id="friendRequestButtonContainer" class="mt-3"></div>
+                </div>
+            </div>
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">📺 Public Watchlist</h5>
+                </div>
+                <div class="card-body" id="watchlistContainer">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const userId = window.location.pathname.split('/').pop();
+    const token = localStorage.getItem('token') || localStorage.getItem('bb_token');
+    if (!token) {
+        window.location.href = '/login';
+    }
+
+    function fetchJson(url, options = {}) {
+        options.headers = options.headers || {};
+        if (token) options.headers['Authorization'] = 'Bearer ' + token;
+        options.headers['Content-Type'] = 'application/json';
+        return fetch(url, options).then(res => {
+            if (res.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('bb_token');
+                window.location.href = '/login';
+                return Promise.reject('Unauthorized');
+            }
+            if (!res.ok) {
+                return res.json().then(err => Promise.reject(err));
+            }
+            return res.json();
+        });
+    }
+
+    // Load user profile
+    fetchJson(`/api/users/${userId}/profile`)
+        .then(profile => {
+            document.getElementById('displayName').textContent = profile.displayName || profile.username;
+            document.getElementById('username').textContent = '@' + profile.username;
+            document.getElementById('friendStats').textContent = `${profile.followerCount} followers · ${profile.followingCount} following`;
+            if (profile.avatarUrl) {
+                document.getElementById('avatarContainer').innerHTML = `<img src="${profile.avatarUrl}" alt="Avatar" class="rounded-circle" width="100" height="100">`;
+            } else {
+                document.getElementById('avatarContainer').innerHTML = '<div class="avatar-placeholder" style="width:100px;height:100px;background:#e9ecef;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:3rem;">👤</div>';
+            }
+            // Friend request button based on friendship status
+            const container = document.getElementById('friendRequestButtonContainer');
+            switch (profile.friendshipStatus) {
+                case 'NONE':
+                    container.innerHTML = `<button class="btn btn-primary" onclick="sendFriendRequest(${profile.userId})">Add Friend</button>`;
+                    break;
+                case 'PENDING_SENT':
+                    container.innerHTML = `<button class="btn btn-secondary" disabled>Request Sent</button>`;
+                    break;
+                case 'PENDING_RECEIVED':
+                    container.innerHTML = `
+                        <button class="btn btn-success me-2" onclick="acceptRequest(${profile.userId})">Accept</button>
+                        <button class="btn btn-danger" onclick="declineRequest(${profile.userId})">Decline</button>
+                    `;
+                    break;
+                case 'FRIENDS':
+                    container.innerHTML = `<button class="btn btn-success" disabled>Friends</button>`;
+                    break;
+            }
+        })
+        .catch(err => console.error('Error loading profile', err));
+
+    // Load watchlist
+    fetchJson(`/api/watchlist/user/${userId}`)
+        .then(entries => {
+            const container = document.getElementById('watchlistContainer');
+            if (!entries || entries.length === 0) {
+                container.innerHTML = '<p class="text-muted">No watchlist entries yet.</p>';
+                return;
+            }
+            let html = '<div class="list-group">';
+            entries.forEach(entry => {
+                // Handle possible field names: title, posterPath or posterUrl
+                const title = entry.title || 'Untitled';
+                const poster = entry.posterUrl || entry.posterPath;
+                const status = entry.status || '';
+                const rating = entry.rating;
+                const review = entry.review;
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">${escapeHtml(title)}</h6>
+                                <small class="text-muted">Status: ${escapeHtml(status)}</small>
+                                ${rating ? `<br><small>Rating: ${rating}/10</small>` : ''}
+                                ${review ? `<p class="mt-1 mb-0 small">${escapeHtml(review)}</p>` : ''}
+                            </div>
+                            ${poster ? `<img src="${poster}" height="50">` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error loading watchlist', err);
+            document.getElementById('watchlistContainer').innerHTML = '<p class="text-danger">Failed to load watchlist.</p>';
+        });
+
+    function sendFriendRequest(receiverId) {
+        fetchJson('/api/friends/requests', {
+            method: 'POST',
+            body: JSON.stringify({ receiverId: receiverId })
+        }).then(() => {
+            alert('Friend request sent!');
+            location.reload();
+        }).catch(err => alert(err.error || 'Failed'));
+    }
+
+    function acceptRequest(senderId) {
+        fetchJson('/api/friends/requests/incoming')
+            .then(requests => {
+                const req = requests.find(r => r.senderId == senderId);
+                if (req) {
+                    return fetchJson(`/api/friends/requests/${req.id}/accept`, { method: 'POST' });
+                } else {
+                    throw new Error('No pending request found');
+                }
+            })
+            .then(() => location.reload())
+            .catch(err => alert(err.error || 'Accept failed'));
+    }
+
+    function declineRequest(senderId) {
+        fetchJson('/api/friends/requests/incoming')
+            .then(requests => {
+                const req = requests.find(r => r.senderId == senderId);
+                if (req) {
+                    return fetchJson(`/api/friends/requests/${req.id}/decline`, { method: 'POST' });
+                } else {
+                    throw new Error('No pending request found');
+                }
+            })
+            .then(() => location.reload())
+            .catch(err => alert(err.error || 'Decline failed'));
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</th:block>
+</body>
+</html>
