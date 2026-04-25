@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>For You | BingeBoxed</title>
+</head>
+<body>
+<section class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Recommended For You</h2>
+        <button id="generateBtn" class="btn btn-primary">
+            <span id="generateSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+            Generate Recommendations
+        </button>
+    </div>
+
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading recommendations...</p>
+    </div>
+
+    <div id="emptyState" class="text-center py-5" style="display: none;">
+        <div class="display-1 text-muted">🎬</div>
+        <h3>No recommendations yet</h3>
+        <p class="text-muted">Click "Generate Recommendations" to get started based on your friends and tastes.</p>
+    </div>
+
+    <div id="errorState" class="alert alert-danger text-center" style="display: none;">
+        <h4>Something went wrong</h4>
+        <p id="errorMessage"></p>
+    </div>
+
+    <div id="recommendationsGrid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" style="display: none;">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM ready, attaching handlers');
+            
+            // Token helpers
+            function getToken() {
+                return localStorage.getItem('bb_token') || localStorage.getItem('token');
+            }
+            
+            function getAuthHeaders() {
+                const currentToken = getToken();
+                return {
+                    'Authorization': 'Bearer ' + currentToken,
+                    'Content-Type': 'application/json'
+                };
+            }
+
+            // Check token, redirect if missing
+            const token = getToken();
+            if (!token) {
+                console.log('No token found, redirecting to login');
+                window.location.href = '/login';
+                return;
+            }
+            
+            // Button handler
+            document.getElementById('generateBtn').addEventListener('click', generateRecommendations);
+            
+            // Load recommendations immediately
+            loadRecommendations();
+
+            // --- Function definitions ---
+            async function loadRecommendations() {
+                console.log('Loading recommendations...');
+                try {
+                    const response = await fetch('/api/recommendations', { headers: getAuthHeaders() });
+                    console.log('API response status:', response.status);
+                    if (response.status === 401) {
+                        localStorage.removeItem('bb_token');
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                        return;
+                    }
+                    if (!response.ok) throw new Error('Failed to load, status ' + response.status);
+                    const data = await response.json();
+                    console.log('Recommendations data:', data);
+                    document.getElementById('loadingState').style.display = 'none';
+                    if (!data || data.length === 0) {
+                        document.getElementById('emptyState').style.display = 'block';
+                    } else {
+                        renderRecommendations(data);
+                    }
+                } catch (err) {
+                    console.error('Error loading recommendations:', err);
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = err.message;
+                }
+            }
+
+            function renderRecommendations(recommendations) {
+                console.log('Rendering', recommendations.length, 'recommendations');
+                const grid = document.getElementById('recommendationsGrid');
+                grid.style.display = '';
+                let html = '';
+                recommendations.forEach(rec => {
+                    const poster = rec.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster'\;
+                    const percentage = rec.score ? Math.round(rec.score) : 0;
+                    html += `
+                        <div class="col" id="rec-${rec.tmdbId}">
+                            <div class="card h-100">
+                                <img src="${escapeHtml(poster)}" class="card-img-top" alt="Poster" style="height: 300px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">${escapeHtml(rec.title || 'Unknown Title')}</h5>
+                                    <span class="badge ${rec.contentType === 'MOVIE' ? 'bg-primary' : 'bg-success'} mb-2">${escapeHtml(rec.contentType)}</span>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar ${percentage >= 80 ? 'bg-success' : percentage >= 60 ? 'bg-info' : 'bg-warning'}" 
+                                             role="progressbar" style="width: ${percentage}%">
+                                            ${percentage}%
+                                        </div>
+                                    </div>
+                                    <p class="card-text small text-muted">${escapeHtml(rec.reason || '')}</p>
+                                    <div class="mt-auto text-end">
+                                        <a href="/catalog/${rec.tmdbId}?type=${rec.contentType === 'MOVIE' ? 'movie' : 'series'}" 
+                                           class="btn btn-sm btn-outline-primary">View Details</a>
+                                        <button class="btn btn-sm btn-outline-danger ms-1 dismiss-btn" data-tmdbid="${rec.tmdbId}">Dismiss</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                grid.innerHTML = html;
+                document.getElementById('emptyState').style.display = 'none';
+                
+                // Attach dismiss handlers using event delegation
+                document.querySelectorAll('.dismiss-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        dismissRecommendation(this.getAttribute('data-tmdbid'));
+                    });
+                });
+            }
+
+            async function generateRecommendations() {
+                const btn = document.getElementById('generateBtn');
+                const spinner = document.getElementById('generateSpinner');
+                btn.disabled = true;
+                spinner.classList.remove('d-none');
+                console.log('Generating recommendations...');
+                
+                try {
+                    const response = await fetch('/api/recommendations/generate', {
+                        method: 'POST',
+                        headers: getAuthHeaders()
+                    });
+                    console.log('Generate response status:', response.status);
+                    if (response.status === 401) {
+                        localStorage.removeItem('bb_token');
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                        return;
+                    }
+                    if (!response.ok) throw new Error('Generation failed');
+                    const data = await response.json();
+                    console.log('Generated data:', data);
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('errorState').style.display = 'none';
+                    if (!data || data.length === 0) {
+                        document.getElementById('emptyState').style.display = 'block';
+                        document.getElementById('recommendationsGrid').style.display = 'none';
+                    } else {
+                        renderRecommendations(data);
+                    }
+                } catch (err) {
+                    console.error('Generation error:', err);
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = err.message;
+                } finally {
+                    btn.disabled = false;
+                    spinner.classList.add('d-none');
+                }
+            }
+
+            async function dismissRecommendation(tmdbId) {
+                console.log('Dismissing recommendation', tmdbId);
+                try {
+                    const response = await fetch('/api/recommendations/' + tmdbId, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    if (response.status === 204) {
+                        const card = document.getElementById('rec-' + tmdbId);
+                        if (card) card.remove();
+                        if (document.getElementById('recommendationsGrid').children.length === 0) {
+                            document.getElementById('emptyState').style.display = 'block';
+                            document.getElementById('recommendationsGrid').style.display = 'none';
+                        }
+                    } else if (response.status === 404) {
+                        alert('Recommendation not found');
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('bb_token');
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                    }
+                } catch (err) {
+                    alert('Failed to dismiss');
+                }
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        });
+    </script>
+</section>
+</body>
+</html>

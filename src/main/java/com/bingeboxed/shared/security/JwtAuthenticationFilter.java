@@ -1,4 +1,3 @@
-// src/main/java/com/bingeboxed/shared/security/JwtAuthenticationFilter.java
 package com.bingeboxed.shared.security;
 
 import jakarta.servlet.FilterChain;
@@ -31,32 +30,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
-    // src/main/java/com/bingeboxed/shared/security/JwtAuthenticationFilter.java
-// Update the shouldNotFilter method:
-
-@Override
-protected boolean shouldNotFilter(HttpServletRequest request) {
-    String path = request.getRequestURI();
-    // Skip filter for these paths - they don't need JWT authentication
-    return path.equals("/login") || 
-           path.equals("/register") ||
-           path.equals("/profile") ||
-           path.startsWith("/profile/") ||
-           path.equals("/catalog") ||
-           path.startsWith("/catalog/") ||
-           path.equals("/reviews") ||
-           path.equals("/watchlist") ||
-           path.startsWith("/watchlist/") ||  // Add this line - allows /watchlist/user/{id}
-           path.equals("/social") ||
-           path.startsWith("/users/") ||
-           path.startsWith("/api/auth/") ||
-           path.startsWith("/api/profiles/public/") ||
-           path.startsWith("/api/catalog/") ||
-           path.startsWith("/api/watchlist/user/") ||
-           path.startsWith("/api/reviews/content/") ||
-           path.startsWith("/api/reviews/user/") ||
-           path.contains("/rating");
-}
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/login") || 
+               path.equals("/register") ||
+               path.equals("/profile") ||
+               path.startsWith("/profile/") ||
+               path.equals("/catalog") ||
+               path.startsWith("/catalog/") ||
+               path.equals("/reviews") ||
+               path.equals("/watchlist") ||
+               path.startsWith("/watchlist/") ||
+               path.equals("/social") ||
+               path.equals("/recommendations") ||
+               path.startsWith("/api/recommendations") ||
+               path.startsWith("/users/") ||
+               path.startsWith("/api/auth/") ||
+               path.startsWith("/api/profiles/public/") ||
+               path.startsWith("/api/catalog/") ||
+               path.startsWith("/api/watchlist/user/") ||
+               path.startsWith("/api/reviews/content/") ||
+               path.startsWith("/api/reviews/user/") ||
+               path.contains("/rating");
+    }
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -64,7 +61,6 @@ protected boolean shouldNotFilter(HttpServletRequest request) {
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Skip filter for public paths
         if (shouldNotFilter(request)) {
             filterChain.doFilter(request, response);
             return;
