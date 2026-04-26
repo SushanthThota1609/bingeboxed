@@ -1,0 +1,11 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-21 02:41,claude,watchlist,1,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-21 03:07,claude,watchlist,2,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-21 03:12,claude,watchlist,3,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-21 03:13,claude,watchlist,4,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-22 17:24,claude,watchlist,5,PARTIAL,87,0,19,68,78%,
+2026-04-22 17:30,claude,watchlist,6,PARTIAL,87,0,19,68,78%,
+2026-04-22 17:35,claude,watchlist,7,PARTIAL,87,0,19,68,78%,
+2026-04-22 17:48,claude,watchlist,8,PARTIAL,87,14,0,73,83%,
+2026-04-22 18:01,claude,watchlist,9,PARTIAL,87,8,0,79,90%,
+2026-04-22 18:19,claude,watchlist,10,PARTIAL,87,8,0,79,90%,

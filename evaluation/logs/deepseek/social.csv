@@ -1,0 +1,8 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-24 12:51,deepseek,social,1,BUILD_FAILURE,0,0,0,0,0%,[ERROR]  [ERROR] For more information about the errors and possible solutions; please read the following articles: [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+2026-04-24 12:53,deepseek,social,1,PARTIAL,24,8,3,13,54%,
+2026-04-24 13:03,deepseek,social,3,PARTIAL,24,2,3,19,79%,
+2026-04-24 13:05,deepseek,social,4,PARTIAL,24,1,3,20,83%,
+2026-04-24 13:08,deepseek,social,5,PARTIAL,24,1,3,20,83%,
+2026-04-24 13:12,deepseek,social,6,PARTIAL,24,3,0,21,87%,
+2026-04-24 13:37,deepseek,social,7,PARTIAL,24,5,0,19,79%,

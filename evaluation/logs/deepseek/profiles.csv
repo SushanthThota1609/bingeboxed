@@ -1,0 +1,4 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-19 22:33,deepseek,profiles,1,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-19 22:38,deepseek,profiles,2,PARTIAL,6,2,1,3,50%,
+2026-04-19 22:46,deepseek,profiles,3,PASS,6,0,0,6,100%,

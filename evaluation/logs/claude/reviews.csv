@@ -1,4 +1,3 @@
-2026-04-23 23:53,claude,reviews,,PARSE_ERROR,0,0,0,0,0%,could not parse test output
-2026-04-23 23:53,claude,reviews,1,PARTIAL,37,9,0,28,75%,
-2026-04-24 00:13,claude,reviews,2,PASS,37,0,0,37,100%,
-2026-04-24 00:30,claude,reviews,3,PASS,37,0,0,37,100%,
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-24 17:42,deepseek,reviews,1,PARTIAL,36,1,0,35,97%,
+2026-04-24 17:46,deepseek,reviews,2,PASS,36,0,0,36,100%,
