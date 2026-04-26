@@ -1,0 +1,6 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-25 20:48,deepseek,recommendations,1,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 20:49,deepseek,recommendations,1,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 20:50,deepseek,recommendations,1,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 20:51,deepseek,recommendations,1,BUILD_FAILURE,0,0,0,0,0%,[ERROR]  [ERROR] For more information about the errors and possible solutions; please read the following articles: [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException 
+2026-04-25 20:53,deepseek,recommendations,1,PARTIAL,12,6,0,6,50%,
