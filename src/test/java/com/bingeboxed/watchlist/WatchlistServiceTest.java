@@ -1216,10 +1216,6 @@ class UserResolverImplTest {
         // This is what happens on every watchlist request — if this throws
         // ResponseStatusException with status 500, the bug is still present.
         // The fix must result in a valid Long being returned here.
-        assertThatThrownBy(() -> userResolver.resolveUserIdByEmail("ssher9@uic.edu"))
-                .isNotInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-
-        // Or if it doesn't throw at all — that's the correct behaviour
         Long userId = userResolver.resolveUserIdByEmail("ssher9@uic.edu");
         assertThat(userId).isNotNull().isPositive();
     }

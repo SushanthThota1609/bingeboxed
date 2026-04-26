@@ -1,5 +1,7 @@
 package com.bingeboxed.watchlist;
 
+import com.bingeboxed.shared.client.CatalogClient;
+import com.bingeboxed.shared.client.CatalogContentDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -16,6 +19,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -62,6 +70,9 @@ class WatchlistIntegrationTest {
     @Autowired
     private com.bingeboxed.shared.security.JwtService jwtService;
 
+    @MockBean
+    private CatalogClient catalogClient;
+
     private String validToken;
     private static final String TEST_EMAIL    = "ssher9@uic.edu";
     private static final String TEST_PASSWORD = "password123";
@@ -83,6 +94,12 @@ class WatchlistIntegrationTest {
 
         // Generate a real JWT for this user — the same way the auth service would
         validToken = jwtService.generateToken(TEST_EMAIL);
+
+        CatalogContentDto fakeContent = new CatalogContentDto();
+        fakeContent.setTmdbId(TMDB_ID);
+        fakeContent.setTitle("Test Movie");
+        fakeContent.setContentType("MOVIE");
+        when(catalogClient.findById(anyInt(), anyString())).thenReturn(Optional.of(fakeContent));
     }
 
     // =========================================================================

@@ -1,5 +1,6 @@
 package com.bingeboxed.profiles;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,6 +19,9 @@ class ProfileServiceTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private String getToken(String email) throws Exception {
         mockMvc.perform(post("/api/auth/register")
@@ -101,8 +105,13 @@ class ProfileServiceTest {
     // FR-04: GET /api/profiles/public/{id} — no auth required
     @Test
     void getPublicProfile_noAuth_returns200() throws Exception {
-        getToken("public1@test.com");
-        mockMvc.perform(get("/api/profiles/public/1"))
+        String token = getToken("public1@test.com");
+        String meJson = mockMvc.perform(get("/api/profiles/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long userId = objectMapper.readTree(meJson).get("userId").asLong();
+        mockMvc.perform(get("/api/profiles/public/" + userId))
                 .andExpect(status().isOk());
     }
 

@@ -129,17 +129,8 @@ class RecommendationServiceTest {
 
     @Test
     void recommendationsPage_returns200_whenAuthenticated() throws Exception {
-        String email = "recpage_" + System.currentTimeMillis() + "@test.com";
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"" + email + "\",\"password\":\"Test1234!\",\"username\":\"recpage\"}"));
-        MvcResult login = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"Test1234!\"}"))
-                .andReturn();
-        String cookie = login.getResponse().getHeader("Set-Cookie");
-        var req = get("/recommendations");
-        if (cookie != null) req = req.header("Cookie", cookie.split(";")[0]);
-        mockMvc.perform(req).andExpect(status().isOk());
+        mockMvc.perform(get("/recommendations")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
     }
 }
