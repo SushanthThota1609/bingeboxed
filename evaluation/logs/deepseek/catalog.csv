@@ -1,0 +1,10 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-23 13:47,deepseek,catalog,1,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-23 13:52,deepseek,catalog,2,PASS,23,0,0,23,100%,
+2026-04-23 14:24,deepseek,catalog,3,PARTIAL,40,6,0,34,85%,
+2026-04-23 14:28,deepseek,catalog,4,PASS,40,0,0,40,100%,
+2026-04-23 14:40,deepseek,catalog,5,PARTIAL,54,8,0,46,85%,
+2026-04-23 14:44,deepseek,catalog,6,PARTIAL,54,5,15,34,62%,
+2026-04-23 14:49,deepseek,catalog,7,PARTIAL,54,8,0,46,85%,
+2026-04-23 14:52,deepseek,catalog,8,PARTIAL,54,6,0,48,88%,
+2026-04-23 14:57,deepseek,catalog,9,PASS,54,0,0,54,100%,

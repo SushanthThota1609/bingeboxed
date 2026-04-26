@@ -1,0 +1,3 @@
+timestamp,model,service,prompt,passed,total,rate
+2026-04-18 18:35,claude,auth,1,0,10,0%
+2026-04-18 18:37,claude,auth,2,10,10,100%

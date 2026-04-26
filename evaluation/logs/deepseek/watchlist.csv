@@ -1,0 +1,8 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-23 15:49,deepseek,watchlist,1,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-23 15:51,deepseek,watchlist,1,PARTIAL,52,18,7,27,51%,
+2026-04-23 15:57,deepseek,watchlist,3,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-23 16:00,deepseek,watchlist,4,PARTIAL,52,1,37,14,26%,
+2026-04-23 16:06,deepseek,watchlist,5,PARTIAL,52,14,7,31,59%,
+2026-04-23 16:12,deepseek,watchlist,6,PARTIAL,52,0,1,51,98%,
+2026-04-23 16:18,deepseek,watchlist,7,PASS,52,0,0,52,100%,

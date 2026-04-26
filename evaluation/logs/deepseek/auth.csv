@@ -1,0 +1,8 @@
+timestamp,model,service,prompt,tests_run,failures,errors,passed,pass_rate
+2026-04-19 16:50,deepseek,auth,1,10,10,12,0,0%
+2026-04-19 17:05,deepseek,auth,2,10,2,0,8,80%
+2026-04-19 16:50,deepseek,auth,3,10,10,4,0,0%
+2026-04-19 16:50,deepseek,auth,4,10,10,3,0,0%
+2026-04-19 17:17,deepseek,auth,5,10,5,0,5,50%
+2026-04-19 17:26,deepseek,auth,6,10,5,0,5,50%
+2026-04-19 17:35,deepseek,auth,7,10,0,0,10,100%

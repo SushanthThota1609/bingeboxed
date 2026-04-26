@@ -1,0 +1,5 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-20 19:39,claude,catalog,1,COMPILATION_FAILURE,0,0,0,0,0%,compilation error
+2026-04-20 19:41,claude,catalog,2,PARTIAL,16,3,5,8,50%,
+2026-04-20 19:44,claude,catalog,3,PARTIAL,16,0,1,15,93%,
+2026-04-20 19:46,claude,catalog,4,PASS,16,0,0,16,100%,
