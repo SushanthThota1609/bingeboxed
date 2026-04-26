@@ -1,0 +1,9 @@
+timestamp,model,service,prompt,status,tests_run,failures,errors,passed,pass_rate,notes
+2026-04-25 15:52,claude,recommendation,1,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:01,claude,recommendation,2,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:04,claude,recommendation,3,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:05,claude,recommendation,4,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:06,claude,recommendation,5,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:08,claude,recommendation,6,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 16:08,claude,recommendation,7,PARSE_ERROR,0,0,0,0,0%,could not parse test output
+2026-04-25 20:23,claude,recommendation,8,PARTIAL,203,10,1,192,94%,
