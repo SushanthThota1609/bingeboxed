@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/watchlist", "/watchlist/user/**").permitAll()
                         .requestMatchers("/social", "/social/**").permitAll()
                         .requestMatchers("/reviews", "/reviews/**").permitAll()
+                        .requestMatchers("/recommendations", "/recommendations/**").permitAll()
 
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated()
